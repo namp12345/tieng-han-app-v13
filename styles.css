@@ -1,57 +1,570 @@
 :root {
-  --background:#FFFBEA;
-  --section:#FFF8D6;
-  --card:#FFFDF7;
-  --primary:#2563EB;
-  --text:#111827;
-  --secondary:#6B7280;
-  --border:#E5E7EB;
-  --tag-native:#FEF3C7;
-  --tag-sino:#DBEAFE;
+  --bg: #eaf1ff;
+  --bg-soft: #dce7ff;
+  --surface: #ffffff;
+  --surface-soft: #f2f6ff;
+  --primary: #1d4ed8;
+  --primary-strong: #1e40af;
+  --accent: #16a34a;
+  --warm: #f59e0b;
+  --text: #0b1220;
+  --text-muted: #475569;
+  --border: #b9cae9;
+  --shadow: 0 8px 24px rgba(19, 56, 142, 0.16);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --tag-native: #fff3c9;
+  --tag-sino: #dbeafe;
 }
-*{box-sizing:border-box}
-html,body{background:var(--background)}
-body{margin:0;color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh}
-.app{width:min(760px,100%);margin:0 auto;padding:12px 12px calc(20px + env(safe-area-inset-bottom));background:var(--background);min-height:100vh}
-.app-header,.controls,.progress,.simple-panel,.QuizCard{background:var(--section);border:1px solid var(--border);border-radius:14px;padding:12px}
-.app-header h1{margin:0;color:var(--primary);font-size:1.2rem}.app-header p{margin:4px 0 0;color:var(--secondary)}
-.top-nav{margin-top:8px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-.nav-tab,.mini-tab,.chip,.flip-btn,.AudioButton,.FrontPracticePanel button,.ActionButtonGrid button,.quiz-option,.quiz-next,.delete-record{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px;min-height:44px}
-.nav-tab.active,.mini-tab.active{background:#DBEAFE;color:var(--primary);font-weight:700}
-.controls{margin-top:8px}.controls input,.controls select{width:100%;border:1px solid var(--border);border-radius:10px;padding:9px}
-.control-row{margin-top:6px;display:grid;grid-template-columns:1fr 120px;gap:6px}
-.session-panel{margin-top:8px}
-.progress{margin-top:8px}.track{height:8px;background:#E5E7EB;border-radius:999px;overflow:hidden;margin-top:6px}#progressBar{height:100%;width:0;background:var(--primary)}#statsText{margin:6px 0 0;color:var(--secondary);font-size:.9rem}
-#viewRoot{margin-top:10px;display:grid;gap:10px;background:var(--background)}
-.FlashcardSentence{perspective:1000px;touch-action:manipulation}.card-inner{position:relative;min-height:430px;transform-style:preserve-3d;transition:transform .3s}.FlashcardSentence.flipped .card-inner{transform:rotateY(180deg)}
-.FlashcardFront,.FlashcardBack{position:absolute;inset:0;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px;backface-visibility:hidden}.FlashcardBack{transform:rotateY(180deg);overflow:auto}
-.front-head{display:flex;justify-content:space-between;align-items:center}.SemanticImage{width:72px;height:72px;border-radius:50%;background:#DBEAFE;display:flex;align-items:center;justify-content:center;font-size:2rem}.topic-chip{font-size:.72rem;color:var(--primary);background:#EFF6FF;border:1px solid #BFDBFE;border-radius:999px;padding:4px 8px}
-.korean-row{display:flex;align-items:center;gap:8px}.korean,.quiz-korean{margin:10px 0 0;font-size:clamp(1.45rem,5.4vw,2rem);font-weight:800;line-height:1.2}.roman{margin:4px 0 0;color:var(--secondary)}.vietnamese{margin:6px 0 0;color:var(--primary);font-size:1.18rem;font-weight:700}
-.FrontPracticePanel{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px}.FrontPracticePanel button,.ActionButtonGrid button{min-height:42px;font-weight:600}
-.FrontPracticePanel button:disabled{opacity:.45;cursor:not-allowed}
-.CompletionToggle{margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:6px;background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:8px}.CompletionToggle span{font-size:.88rem;color:var(--secondary)}
-.flip-zone{margin-top:8px;width:100%;border:1px dashed #CBD5E1;background:#FFFBEB;color:#92400E;border-radius:10px;padding:10px;font-weight:600;position:relative;z-index:5}
-.flip-btn{position:relative;z-index:6}
-.back-top{display:flex;justify-content:space-between;align-items:center;gap:8px}.back-tabs{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px}.tab-body{margin-top:8px}
-.brief{border:1px solid var(--border);border-radius:10px;padding:8px;margin-top:6px;font-size:.9rem}
-.AnalysisList{display:grid;gap:6px}.word-item{border:1px solid var(--border);border-radius:10px;padding:8px}.word-head{display:flex;justify-content:space-between;align-items:center}.word-item p{margin:4px 0 0;font-size:.9rem}
-.origin-tag{display:inline-block;margin-top:6px;border-radius:999px;padding:2px 8px;font-size:.74rem;font-weight:700}.tag-native{background:var(--tag-native)}.tag-sino{background:var(--tag-sino)}.tag-unknown{background:#F3F4F6}
-.ActionButtonGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.record-status{margin:6px 0 0;color:var(--secondary);font-size:.84rem}
-.quiz-title{margin:0;color:var(--secondary)}.quiz-options{margin-top:8px;display:grid;gap:6px}.quiz-option.ok{background:#DDF4E4;border-color:#86EFAC}.quiz-option.fail{background:#FDE2E2;border-color:#FCA5A5}.quiz-result{min-height:20px;color:var(--primary);font-weight:700}
-.empty{background:var(--section);border:1px dashed var(--border);border-radius:12px;padding:14px;text-align:center}.hidden{display:none!important}
-@media(max-width:767px){
-  .top-nav{grid-template-columns:repeat(3,1fr)}
-  .control-row,.FrontPracticePanel,.ActionButtonGrid{grid-template-columns:1fr}
-  .FlashcardSentence{perspective:none}
-  .card-inner{min-height:auto;transform:none!important}
-  .FlashcardFront,.FlashcardBack{position:relative;transform:none;backface-visibility:visible;overflow:visible}
-  .FlashcardBack{display:none;max-height:70vh;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:16px}
-  .FlashcardSentence.flipped .FlashcardFront{display:none}
-  .FlashcardSentence.flipped .FlashcardBack{display:block}
-  .korean,.quiz-korean{font-size:clamp(1.5rem,6.2vw,2rem)}
-  .roman{font-size:.9rem}
-  .vietnamese{font-size:1.05rem}
-  .front-head{gap:8px}
-  .SemanticImage{width:58px;height:58px;font-size:1.6rem}
-  .CompletionToggle{padding:10px}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  background: linear-gradient(180deg, #edf3ff 0%, #dbe7ff 100%);
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  min-height: 100vh;
+  font-size: 17px;
+}
+
+.app {
+  width: min(820px, 100%);
+  margin: 0 auto;
+  padding: 10px 10px calc(20px + env(safe-area-inset-bottom));
+  min-height: 100vh;
+}
+
+.app-header,
+.controls,
+.progress,
+.simple-panel,
+.QuizCard,
+.session-panel article {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.app-header {
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+  color: #f8fbff;
+  border-color: #2646a6;
+}
+
+.app-header h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.22rem, 4.8vw, 1.5rem);
+  font-weight: 800;
+}
+
+.app-header p {
+  margin: 2px 0 0;
+  color: #dbeafe;
+  font-size: .92rem;
+  font-weight: 500;
+}
+
+.top-nav {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.nav-tab,
+.mini-tab,
+.chip,
+.flip-btn,
+.AudioButton,
+.FrontPracticePanel button,
+.ActionButtonGrid button,
+.quiz-option,
+.quiz-next,
+.delete-record,
+#setWrap button,
+.settings-action,
+.settings-switch {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  min-height: 44px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: .78rem;
+  font-weight: 700;
+  background: #eef4ff;
+  min-height: 52px;
+  padding: 6px 2px;
+}
+
+.nav-icon {
+  font-size: 1.05rem;
+}
+
+.nav-tab.active,
+.mini-tab.active {
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+  color: #fff;
+  border-color: #1e3a8a;
+}
+
+.controls {
+  margin-top: 8px;
+  padding: 10px;
+}
+
+.controls input,
+.controls select,
+#settingsPanel input[type="file"] {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 11px;
+  background: #fff;
+  color: var(--text);
+  font-size: .95rem;
+  font-weight: 500;
+}
+
+.control-row {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 8px;
+}
+
+#randomBtn {
+  background: linear-gradient(180deg, #ffefc8 0%, #ffd983 100%);
+  border-color: #f0bf4d;
+}
+
+.session-panel {
+  margin-top: 10px;
+}
+
+.session-card {
+  padding: 14px;
+}
+
+.session-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.session-badge {
+  font-size: .8rem;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #edf5ff;
+  color: var(--primary-strong);
+  border: 1px solid #bfd8ff;
+}
+
+.progress {
+  margin-top: 8px;
+  padding: 10px 12px;
+}
+
+.track {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+#progressBar {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%);
+}
+
+#statsText {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+#viewRoot {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.FlashcardSentence { perspective: 1000px; touch-action: manipulation; }
+.card-inner {
+  position: relative;
+  min-height: 440px;
+  transform-style: preserve-3d;
+  transition: transform .3s;
+}
+
+.FlashcardSentence.flipped .card-inner { transform: rotateY(180deg); }
+
+.FlashcardFront,
+.FlashcardBack {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px;
+  backface-visibility: hidden;
+  box-shadow: var(--shadow);
+}
+
+.FlashcardBack { transform: rotateY(180deg); overflow: auto; }
+
+.front-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.SemanticImage {
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.topic-chip {
+  font-size: .76rem;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-weight: 700;
+}
+
+.korean-row { display: flex; align-items: center; gap: 8px; }
+
+.korean,
+.quiz-korean {
+  margin: 12px 0 0;
+  font-size: clamp(1.95rem, 7vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #0f172a;
+}
+
+.roman { margin: 6px 0 0; color: #334155; font-size: 1rem; font-weight: 600; }
+
+.vietnamese {
+  margin: 8px 0 0;
+  color: #1e3a8a;
+  font-size: clamp(1.18rem, 4.8vw, 1.36rem);
+  font-weight: 800;
+}
+
+.AudioButton {
+  width: 44px;
+  min-width: 44px;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+.FrontPracticePanel {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.FrontPracticePanel button,
+.ActionButtonGrid button,
+.quiz-option,
+.quiz-next,
+.settings-action {
+  min-height: 46px;
+}
+
+.FrontPracticePanel button:nth-child(1) { background: #eef6ff; }
+.FrontPracticePanel button:nth-child(2) { background: #dbeafe; }
+.FrontPracticePanel button:nth-child(3) { background: #dcfce7; border-color: #86efac; color: #166534; }
+.FrontPracticePanel button:nth-child(4) { background: #ffedd5; border-color: #fdba74; color: #9a3412; }
+
+.FrontPracticePanel button:disabled { opacity: .45; cursor: not-allowed; }
+
+.CompletionToggle {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: #f8fbff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.CompletionToggle span { font-size: .9rem; color: var(--text-muted); }
+
+.FlashcardSentence.flip-activated .FlashcardBack {
+  animation: cardReveal .28s ease-out;
+}
+
+@keyframes cardReveal {
+  from { opacity: .65; transform: translateY(8px) rotateY(180deg); }
+  to { opacity: 1; transform: translateY(0) rotateY(180deg); }
+}
+
+.flip-btn { margin-top: 8px; }
+
+.back-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tab-body { margin-top: 10px; }
+
+.brief {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  margin-top: 8px;
+  font-size: .92rem;
+  background: var(--surface-soft);
+}
+
+.AnalysisList { display: grid; gap: 8px; }
+
+.word-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.word-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.word-item p { margin: 4px 0 0; font-size: .9rem; }
+
+.origin-tag {
+  display: inline-block;
+  margin-top: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.tag-native { background: var(--tag-native); }
+.tag-sino { background: var(--tag-sino); }
+.tag-unknown { background: #f1f5f9; }
+
+.record-status { margin: 8px 0 0; color: var(--text-muted); font-size: .84rem; }
+
+.QuizCard {
+  padding: 16px;
+}
+
+.quiz-title {
+  margin: 0;
+  font-size: .92rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.quiz-options {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.quiz-option {
+  text-align: left;
+  background: #f8fbff;
+  font-size: 1rem;
+}
+
+.quiz-option.ok { background: #dcfce7; border-color: #86efac; }
+.quiz-option.fail { background: #fee2e2; border-color: #fca5a5; }
+.quiz-result { min-height: 22px; color: var(--primary-strong); font-weight: 700; margin: 8px 0 0; }
+.quiz-next { width: 100%; margin-top: 6px; background: #ebf3ff; }
+
+.panel-title {
+  margin: 0;
+  font-size: 1.03rem;
+  color: #1e3a8a;
+}
+
+.panel-subtitle {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.metric-card {
+  border: 1px solid var(--border);
+  background: #f8fbff;
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.metric-label {
+  font-size: .8rem;
+  color: var(--text-muted);
+}
+
+.metric-value {
+  margin-top: 2px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.history-list {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.history-item {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #f8fbff;
+  border: 1px solid var(--border);
+  font-size: .9rem;
+}
+
+.settings-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-switch {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: #f4f8ff;
+}
+
+.settings-switch input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-strong);
+}
+
+.switch-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.switch-copy b { font-size: .94rem; }
+.switch-copy span { font-size: .82rem; color: var(--text-muted); }
+
+.settings-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.empty {
+  background: var(--surface);
+  border: 1px dashed #c9d7eb;
+  border-radius: 16px;
+  padding: 18px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.hidden { display: none !important; }
+
+@media (max-width: 767px) {
+  .app {
+    padding: 8px 8px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  .top-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    position: sticky;
+    top: 4px;
+    z-index: 20;
+    background: rgba(223, 234, 255, .95);
+    backdrop-filter: blur(6px);
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .nav-tab {
+    min-height: 48px;
+    padding: 4px 2px;
+    font-size: .7rem;
+  }
+
+  .control-row,
+  .FrontPracticePanel,
+  .ActionButtonGrid,
+  .settings-actions,
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .FlashcardSentence { perspective: none; }
+
+  .card-inner {
+    min-height: auto;
+    transform: none !important;
+  }
+
+  .FlashcardFront,
+  .FlashcardBack {
+    position: relative;
+    transform: none;
+    backface-visibility: visible;
+    overflow: visible;
+    border-radius: 16px;
+    padding: 12px;
+  }
+
+  .FlashcardBack {
+    display: none;
+    max-height: 72vh;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 18px;
+  }
+
+  .FlashcardSentence.flipped .FlashcardFront { display: none; }
+  .FlashcardSentence.flipped .FlashcardBack { display: block; }
+
+  .SemanticImage {
+    width: 52px;
+    height: 52px;
+    font-size: 1.45rem;
+    border-radius: 14px;
+  }
 }
