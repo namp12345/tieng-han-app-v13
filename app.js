@@ -229,7 +229,6 @@ function FlashcardSentence(s) {
 
   node.querySelector('[data-front-audio]').addEventListener('click', e => { e.stopPropagation(); actListen(s, false); });
   bindTap(node.querySelector('[data-flip-zone]'), e => { e.stopPropagation(); node.classList.add('flipped'); });
-  bindTap(node.querySelector('[data-flip-btn]'), e => { e.stopPropagation(); node.classList.add('flipped'); });
   bindTap(node.querySelector('[data-unflip]'), e => { e.stopPropagation(); node.classList.remove('flipped'); });
 
   const completionLabel = node.querySelector('[data-completion-label]');

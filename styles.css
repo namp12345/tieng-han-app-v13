@@ -1,17 +1,18 @@
 :root {
-  --bg: #f4f8ff;
-  --bg-soft: #eef4ff;
+  --bg: #eaf1ff;
+  --bg-soft: #dce7ff;
   --surface: #ffffff;
-  --surface-soft: #f8fbff;
-  --primary: #3b82f6;
-  --primary-strong: #2563eb;
-  --accent: #22c55e;
-  --text: #0f172a;
-  --text-muted: #64748b;
-  --border: #dbe5f4;
-  --shadow: 0 10px 30px rgba(37, 99, 235, 0.08);
-  --radius-lg: 20px;
-  --radius-md: 14px;
+  --surface-soft: #f2f6ff;
+  --primary: #1d4ed8;
+  --primary-strong: #1e40af;
+  --accent: #16a34a;
+  --warm: #f59e0b;
+  --text: #0b1220;
+  --text-muted: #475569;
+  --border: #b9cae9;
+  --shadow: 0 8px 24px rgba(19, 56, 142, 0.16);
+  --radius-lg: 18px;
+  --radius-md: 12px;
   --tag-native: #fff3c9;
   --tag-sino: #dbeafe;
 }
@@ -20,7 +21,7 @@
 
 html,
 body {
-  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  background: linear-gradient(180deg, #edf3ff 0%, #dbe7ff 100%);
 }
 
 body {
@@ -28,12 +29,13 @@ body {
   color: var(--text);
   font-family: Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   min-height: 100vh;
+  font-size: 17px;
 }
 
 .app {
   width: min(820px, 100%);
   margin: 0 auto;
-  padding: 14px 14px calc(22px + env(safe-area-inset-bottom));
+  padding: 10px 10px calc(20px + env(safe-area-inset-bottom));
   min-height: 100vh;
 }
 
@@ -50,34 +52,31 @@ body {
 }
 
 .app-header {
-  padding: 16px;
-}
-
-.eyebrow {
-  margin: 0;
-  font-size: .72rem;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--primary);
-  font-weight: 700;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+  color: #f8fbff;
+  border-color: #2646a6;
 }
 
 .app-header h1 {
-  margin: 6px 0 0;
-  color: var(--primary-strong);
-  font-size: clamp(1.25rem, 4.6vw, 1.65rem);
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(1.22rem, 4.8vw, 1.5rem);
+  font-weight: 800;
 }
 
 .app-header p {
-  margin: 6px 0 0;
-  color: var(--text-muted);
+  margin: 2px 0 0;
+  color: #dbeafe;
+  font-size: .92rem;
+  font-weight: 500;
 }
 
 .top-nav {
-  margin-top: 10px;
+  margin-top: 8px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .nav-tab,
@@ -107,9 +106,12 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  font-size: .82rem;
-  background: #f8fbff;
+  gap: 1px;
+  font-size: .78rem;
+  font-weight: 700;
+  background: #eef4ff;
+  min-height: 52px;
+  padding: 6px 2px;
 }
 
 .nav-icon {
@@ -118,14 +120,14 @@ body {
 
 .nav-tab.active,
 .mini-tab.active {
-  background: linear-gradient(180deg, #eaf2ff 0%, #deebff 100%);
-  color: var(--primary-strong);
-  border-color: #b8cff7;
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+  color: #fff;
+  border-color: #1e3a8a;
 }
 
 .controls {
-  margin-top: 10px;
-  padding: 14px;
+  margin-top: 8px;
+  padding: 10px;
 }
 
 .controls input,
@@ -134,20 +136,23 @@ body {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 12px;
-  background: var(--surface-soft);
+  padding: 10px 11px;
+  background: #fff;
   color: var(--text);
+  font-size: .95rem;
+  font-weight: 500;
 }
 
 .control-row {
-  margin-top: 8px;
+  margin-top: 6px;
   display: grid;
   grid-template-columns: 1fr 130px;
   gap: 8px;
 }
 
 #randomBtn {
-  background: linear-gradient(180deg, #f0f7ff 0%, #e3efff 100%);
+  background: linear-gradient(180deg, #ffefc8 0%, #ffd983 100%);
+  border-color: #f0bf4d;
 }
 
 .session-panel {
@@ -176,8 +181,8 @@ body {
 }
 
 .progress {
-  margin-top: 10px;
-  padding: 14px;
+  margin-top: 8px;
+  padding: 10px 12px;
 }
 
 .track {
@@ -191,7 +196,7 @@ body {
 #progressBar {
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
+  background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%);
 }
 
 #statsText {
@@ -209,7 +214,7 @@ body {
 .FlashcardSentence { perspective: 1000px; touch-action: manipulation; }
 .card-inner {
   position: relative;
-  min-height: 460px;
+  min-height: 440px;
   transform-style: preserve-3d;
   transition: transform .3s;
 }
@@ -222,8 +227,8 @@ body {
   inset: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 16px;
+  border-radius: 18px;
+  padding: 14px;
   backface-visibility: hidden;
   box-shadow: var(--shadow);
 }
@@ -238,10 +243,11 @@ body {
 }
 
 .SemanticImage {
-  width: 74px;
-  height: 74px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #e3efff 0%, #cfe1ff 100%);
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -250,9 +256,9 @@ body {
 
 .topic-chip {
   font-size: .76rem;
-  color: var(--primary-strong);
-  background: #edf4ff;
-  border: 1px solid #c7dafb;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fbbf24;
   border-radius: 999px;
   padding: 6px 10px;
   font-weight: 700;
@@ -263,18 +269,20 @@ body {
 .korean,
 .quiz-korean {
   margin: 12px 0 0;
-  font-size: clamp(1.6rem, 5.8vw, 2.1rem);
-  font-weight: 800;
+  font-size: clamp(1.95rem, 7vw, 2.35rem);
+  font-weight: 900;
   line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #0f172a;
 }
 
-.roman { margin: 6px 0 0; color: var(--text-muted); }
+.roman { margin: 6px 0 0; color: #334155; font-size: 1rem; font-weight: 600; }
 
 .vietnamese {
   margin: 8px 0 0;
-  color: var(--primary-strong);
-  font-size: clamp(1.06rem, 4.4vw, 1.22rem);
-  font-weight: 700;
+  color: #1e3a8a;
+  font-size: clamp(1.18rem, 4.8vw, 1.36rem);
+  font-weight: 800;
 }
 
 .AudioButton {
@@ -287,7 +295,7 @@ body {
 .FrontPracticePanel {
   margin-top: 10px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -300,9 +308,9 @@ body {
 }
 
 .FrontPracticePanel button:nth-child(1) { background: #eef6ff; }
-.FrontPracticePanel button:nth-child(2) { background: #f2f8ff; }
-.FrontPracticePanel button:nth-child(3) { background: #f0fff4; }
-.FrontPracticePanel button:nth-child(4) { background: #fff7ed; }
+.FrontPracticePanel button:nth-child(2) { background: #dbeafe; }
+.FrontPracticePanel button:nth-child(3) { background: #dcfce7; border-color: #86efac; color: #166534; }
+.FrontPracticePanel button:nth-child(4) { background: #ffedd5; border-color: #fdba74; color: #9a3412; }
 
 .FrontPracticePanel button:disabled { opacity: .45; cursor: not-allowed; }
 
@@ -314,7 +322,7 @@ body {
   gap: 8px;
   background: #f8fbff;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 10px;
 }
 
@@ -323,9 +331,9 @@ body {
 .flip-zone {
   margin-top: 10px;
   width: 100%;
-  border: 1px dashed #b6c9eb;
-  background: #f4f8ff;
-  color: #334155;
+  border: 1px dashed #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
   border-radius: 12px;
   padding: 12px;
   font-weight: 600;
@@ -391,7 +399,8 @@ body {
 
 .quiz-option {
   text-align: left;
-  background: #fbfdff;
+  background: #f8fbff;
+  font-size: 1rem;
 }
 
 .quiz-option.ok { background: #dcfce7; border-color: #86efac; }
@@ -434,7 +443,7 @@ body {
   margin-top: 2px;
   font-size: 1.05rem;
   font-weight: 800;
-  color: #1d4ed8;
+  color: #1e3a8a;
 }
 
 .history-list {
@@ -461,7 +470,7 @@ body {
   display: flex;
   gap: 10px;
   align-items: center;
-  background: #f9fbff;
+  background: #f4f8ff;
 }
 
 .settings-switch input {
@@ -497,25 +506,25 @@ body {
 
 @media (max-width: 767px) {
   .app {
-    padding: 12px 10px calc(20px + env(safe-area-inset-bottom));
+    padding: 8px 8px calc(18px + env(safe-area-inset-bottom));
   }
 
   .top-nav {
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
+    gap: 4px;
     position: sticky;
-    top: 8px;
+    top: 4px;
     z-index: 20;
-    background: rgba(244, 248, 255, .95);
+    background: rgba(223, 234, 255, .95);
     backdrop-filter: blur(6px);
-    padding: 6px;
-    border-radius: 16px;
+    padding: 4px;
+    border-radius: 12px;
   }
 
   .nav-tab {
-    min-height: 58px;
-    padding: 6px 4px;
-    font-size: .73rem;
+    min-height: 48px;
+    padding: 4px 2px;
+    font-size: .7rem;
   }
 
   .control-row,
@@ -539,8 +548,8 @@ body {
     transform: none;
     backface-visibility: visible;
     overflow: visible;
-    border-radius: 18px;
-    padding: 14px;
+    border-radius: 16px;
+    padding: 12px;
   }
 
   .FlashcardBack {
@@ -555,9 +564,9 @@ body {
   .FlashcardSentence.flipped .FlashcardBack { display: block; }
 
   .SemanticImage {
-    width: 58px;
-    height: 58px;
-    font-size: 1.6rem;
-    border-radius: 16px;
+    width: 52px;
+    height: 52px;
+    font-size: 1.45rem;
+    border-radius: 14px;
   }
 }
