@@ -328,19 +328,6 @@ body {
 
 .CompletionToggle span { font-size: .9rem; color: var(--text-muted); }
 
-.flip-hint {
-  margin: 10px 0 0;
-  width: 100%;
-  text-align: center;
-  color: #64748b;
-  font-size: .82rem;
-  font-weight: 500;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  border-radius: 10px;
-  padding: 8px;
-}
-
 .FlashcardSentence.flip-activated .FlashcardBack {
   animation: cardReveal .28s ease-out;
 }
