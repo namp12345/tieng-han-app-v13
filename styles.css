@@ -328,15 +328,26 @@ body {
 
 .CompletionToggle span { font-size: .9rem; color: var(--text-muted); }
 
-.flip-zone {
-  margin-top: 10px;
+.flip-hint {
+  margin: 10px 0 0;
   width: 100%;
-  border: 1px dashed #f59e0b;
-  background: #fffbeb;
-  color: #92400e;
-  border-radius: 12px;
-  padding: 12px;
-  font-weight: 600;
+  text-align: center;
+  color: #64748b;
+  font-size: .82rem;
+  font-weight: 500;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.FlashcardSentence.flip-activated .FlashcardBack {
+  animation: cardReveal .28s ease-out;
+}
+
+@keyframes cardReveal {
+  from { opacity: .65; transform: translateY(8px) rotateY(180deg); }
+  to { opacity: 1; transform: translateY(0) rotateY(180deg); }
 }
 
 .flip-btn { margin-top: 8px; }

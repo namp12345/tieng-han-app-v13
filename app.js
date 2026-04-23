@@ -228,7 +228,7 @@ function FlashcardSentence(s) {
   node.querySelector('[data-natural]').textContent = s.naturalMeaning;
 
   node.querySelector('[data-front-audio]').addEventListener('click', e => { e.stopPropagation(); actListen(s, false); });
-  bindTap(node.querySelector('[data-flip-zone]'), e => { e.stopPropagation(); node.classList.add('flipped'); });
+  bindDoubleTapFlip(node);
   bindTap(node.querySelector('[data-unflip]'), e => { e.stopPropagation(); node.classList.remove('flipped'); });
 
   const completionLabel = node.querySelector('[data-completion-label]');
@@ -262,6 +262,42 @@ function bindTap(el, handler) {
     e.preventDefault();
     handler(e);
   }, { passive: false });
+}
+
+function bindDoubleTapFlip(node) {
+  const front = node.querySelector('.FlashcardFront');
+  if (!front) return;
+  let lastTapAt = 0;
+  let lastX = 0;
+  let lastY = 0;
+  let lastTouchAt = 0;
+  const DOUBLE_TAP_MS = 250;
+  const MOVE_THRESHOLD = 24;
+
+  const isInteractiveTarget = target => target.closest('button, input, select, textarea, a, label, [data-action], .AudioButton, .CompletionToggle');
+  const onTapEnd = e => {
+    if (e.type === 'click' && Date.now() - lastTouchAt < 420) return;
+    if (isInteractiveTarget(e.target)) return;
+    const changed = e.changedTouches?.[0];
+    const x = changed?.clientX ?? e.clientX ?? 0;
+    const y = changed?.clientY ?? e.clientY ?? 0;
+    const now = Date.now();
+    if (e.type === 'touchend') lastTouchAt = now;
+    const closeInTime = now - lastTapAt <= DOUBLE_TAP_MS;
+    const closeInSpace = Math.hypot(x - lastX, y - lastY) <= MOVE_THRESHOLD;
+    if (closeInTime && closeInSpace) {
+      node.classList.add('flipped', 'flip-activated');
+      setTimeout(() => node.classList.remove('flip-activated'), 320);
+      lastTapAt = 0;
+      return;
+    }
+    lastTapAt = now;
+    lastX = x;
+    lastY = y;
+  };
+
+  front.addEventListener('touchend', onTapEnd, { passive: true });
+  front.addEventListener('click', onTapEnd);
 }
 
 function bindBackTabs(node) {
