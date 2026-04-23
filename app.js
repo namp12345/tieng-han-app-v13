@@ -189,10 +189,12 @@ function render() {
 function renderSessionPanel() {
   const s = currentSessionInfo();
   refs.sessionPanel.innerHTML = `
-    <article class="simple-panel">
-      <strong>Phiên ${s.time}</strong>
-      <p>Đã học: ${s.done}/${Math.max(3, s.total)}</p>
-      <p>Phiên kế tiếp: ${s.nextUnlocked ? 'Đã mở' : 'Đang khóa'}</p>
+    <article class="simple-panel session-card">
+      <div class="session-head">
+        <strong>Phiên học hiện tại</strong>
+        <span class="session-badge">${s.time}</span>
+      </div>
+      <p class="panel-subtitle">Đã học: <b>${s.done}/${Math.max(3, s.total)}</b> · Phiên kế tiếp: <b>${s.nextUnlocked ? 'Đã mở' : 'Đang khóa'}</b></p>
     </article>
   `;
 }
@@ -405,7 +407,20 @@ function renderReview() {
   const list = Object.values(state.progressById).filter(p => p.reviewBucket || p.isCompleted).slice(0, 100);
   const panel = document.createElement('article');
   panel.className = 'simple-panel';
-  panel.innerHTML = `<h3>Ôn tập</h3><p>${list.length} cụm từ trong bucket ôn tập.</p>`;
+  panel.innerHTML = `
+    <h3 class="panel-title">Ôn tập thông minh</h3>
+    <p class="panel-subtitle">${list.length} cụm từ trong bucket ôn tập.</p>
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Trong bucket ôn</div>
+        <div class="metric-value">${list.filter(x => x.reviewBucket).length}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Đã hoàn thành</div>
+        <div class="metric-value">${list.filter(x => x.isCompleted).length}</div>
+      </div>
+    </div>
+  `;
   refs.viewRoot.append(panel);
 }
 
@@ -421,25 +436,32 @@ function renderStats() {
 
   refs.viewRoot.innerHTML = `
     <article class="simple-panel">
-      <h3>Hôm nay (${today.date})</h3>
-      <p>Đã học: ${today.studiedCount} · Hoàn thành: ${today.completedCount}</p>
-      <p>Nghe: ${today.listenCount} · Nghe chậm: ${today.slowListenCount} · Ghi âm: ${today.recordCount} · Nghe lại: ${today.selfPlayCount}</p>
-      <p>Phiên hoàn thành: ${today.completedSessions.length}</p>
+      <h3 class="panel-title">Hôm nay (${today.date})</h3>
+      <div class="metric-grid">
+        <div class="metric-card"><div class="metric-label">Đã học</div><div class="metric-value">${today.studiedCount}</div></div>
+        <div class="metric-card"><div class="metric-label">Hoàn thành</div><div class="metric-value">${today.completedCount}</div></div>
+        <div class="metric-card"><div class="metric-label">Lượt nghe</div><div class="metric-value">${today.listenCount + today.slowListenCount}</div></div>
+        <div class="metric-card"><div class="metric-label">Luyện nói</div><div class="metric-value">${today.recordCount + today.selfPlayCount}</div></div>
+      </div>
+      <p class="panel-subtitle">Phiên hoàn thành: <b>${today.completedSessions.length}</b></p>
     </article>
     <article class="simple-panel">
-      <h3>Tổng quan</h3>
-      <p>Hoàn thành: ${completed}/${total.length}</p>
-      <p>Chưa hoàn thành: ${total.length - completed}</p>
-      <p>Số ngày đã học: ${days.length} · Streak: ${streak} ngày</p>
-      <p>Chủ đề học nhiều nhất: ${bestTopic}</p>
-      <p>Khung giờ hiệu quả nhất: ${bestTime}</p>
+      <h3 class="panel-title">Tổng quan tiến độ</h3>
+      <div class="metric-grid">
+        <div class="metric-card"><div class="metric-label">Hoàn thành</div><div class="metric-value">${completed}/${total.length}</div></div>
+        <div class="metric-card"><div class="metric-label">Còn lại</div><div class="metric-value">${total.length - completed}</div></div>
+        <div class="metric-card"><div class="metric-label">Ngày đã học</div><div class="metric-value">${days.length}</div></div>
+        <div class="metric-card"><div class="metric-label">Streak</div><div class="metric-value">${streak} ngày</div></div>
+      </div>
+      <p class="panel-subtitle">Chủ đề học nhiều nhất: <b>${bestTopic}</b></p>
+      <p class="panel-subtitle">Khung giờ hiệu quả nhất: <b>${bestTime}</b></p>
     </article>
     <article class="simple-panel">
-      <h3>Lịch sử theo ngày</h3>
-      ${days.reverse().slice(0,14).map(d => {
+      <h3 class="panel-title">Lịch sử 14 ngày</h3>
+      <div class="history-list">${days.reverse().slice(0,14).map(d => {
         const x = state.dailyStats[d];
-        return `<p>${d}: học ${x.studiedCount}, hoàn thành ${x.completedCount}, luyện nói ${x.recordCount + x.selfPlayCount}</p>`;
-      }).join('')}
+        return `<p class="history-item">${d}: học ${x.studiedCount}, hoàn thành ${x.completedCount}, luyện nói ${x.recordCount + x.selfPlayCount}</p>`;
+      }).join('')}</div>
     </article>
   `;
 }
@@ -470,16 +492,30 @@ function calcBestTime() {
 
 function renderSettings() {
   refs.viewRoot.innerHTML = `
-    <article class="simple-panel">
-      <h3>Cài đặt</h3>
-      <label><input type="checkbox" id="setShowCompleted" ${state.settings.showCompletedInLearn ? 'checked':''}> Hiển thị lại cụm từ đã hoàn thành</label><br>
-      <label><input type="checkbox" id="setUnlockAll" ${state.settings.unlockAllPhrases ? 'checked':''}> Mở tất cả cụm từ</label><br>
-      <label><input type="checkbox" id="setSchedule" ${state.settings.scheduleMode ? 'checked':''}> Học theo khung giờ</label><br>
-      <button id="resetAll">Reset tiến độ học</button>
-      <button id="resetCompleted">Reset trạng thái hoàn thành</button>
-      <button id="resetStats">Reset thống kê</button>
-      <button id="exportData">Xuất dữ liệu học</button>
-      <input id="importFile" type="file" accept="application/json">
+    <article class="simple-panel" id="settingsPanel">
+      <h3 class="panel-title">Cài đặt học tập</h3>
+      <p class="panel-subtitle">Tùy chỉnh trải nghiệm học mỗi ngày mà không làm mất dữ liệu.</p>
+      <div class="settings-wrap">
+        <label class="settings-switch">
+          <input type="checkbox" id="setShowCompleted" ${state.settings.showCompletedInLearn ? 'checked':''}>
+          <span class="switch-copy"><b>Hiển thị câu đã hoàn thành</b><span>Bật để ôn lại toàn bộ câu đã học.</span></span>
+        </label>
+        <label class="settings-switch">
+          <input type="checkbox" id="setUnlockAll" ${state.settings.unlockAllPhrases ? 'checked':''}>
+          <span class="switch-copy"><b>Mở tất cả cụm từ</b><span>Bỏ giới hạn mở khóa theo phiên.</span></span>
+        </label>
+        <label class="settings-switch">
+          <input type="checkbox" id="setSchedule" ${state.settings.scheduleMode ? 'checked':''}>
+          <span class="switch-copy"><b>Học theo khung giờ</b><span>Giữ nhịp học theo phiên cố định.</span></span>
+        </label>
+        <div class="settings-actions">
+          <button class="settings-action" id="resetAll">Reset tiến độ học</button>
+          <button class="settings-action" id="resetCompleted">Reset trạng thái hoàn thành</button>
+          <button class="settings-action" id="resetStats">Reset thống kê</button>
+          <button class="settings-action" id="exportData">Xuất dữ liệu học</button>
+        </div>
+        <input id="importFile" type="file" accept="application/json">
+      </div>
     </article>
   `;
 
