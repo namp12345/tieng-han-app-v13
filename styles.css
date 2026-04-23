@@ -1,0 +1,57 @@
+:root {
+  --background:#FFFBEA;
+  --section:#FFF8D6;
+  --card:#FFFDF7;
+  --primary:#2563EB;
+  --text:#111827;
+  --secondary:#6B7280;
+  --border:#E5E7EB;
+  --tag-native:#FEF3C7;
+  --tag-sino:#DBEAFE;
+}
+*{box-sizing:border-box}
+html,body{background:var(--background)}
+body{margin:0;color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh}
+.app{width:min(760px,100%);margin:0 auto;padding:12px 12px calc(20px + env(safe-area-inset-bottom));background:var(--background);min-height:100vh}
+.app-header,.controls,.progress,.simple-panel,.QuizCard{background:var(--section);border:1px solid var(--border);border-radius:14px;padding:12px}
+.app-header h1{margin:0;color:var(--primary);font-size:1.2rem}.app-header p{margin:4px 0 0;color:var(--secondary)}
+.top-nav{margin-top:8px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.nav-tab,.mini-tab,.chip,.flip-btn,.AudioButton,.FrontPracticePanel button,.ActionButtonGrid button,.quiz-option,.quiz-next,.delete-record{border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px;min-height:44px}
+.nav-tab.active,.mini-tab.active{background:#DBEAFE;color:var(--primary);font-weight:700}
+.controls{margin-top:8px}.controls input,.controls select{width:100%;border:1px solid var(--border);border-radius:10px;padding:9px}
+.control-row{margin-top:6px;display:grid;grid-template-columns:1fr 120px;gap:6px}
+.session-panel{margin-top:8px}
+.progress{margin-top:8px}.track{height:8px;background:#E5E7EB;border-radius:999px;overflow:hidden;margin-top:6px}#progressBar{height:100%;width:0;background:var(--primary)}#statsText{margin:6px 0 0;color:var(--secondary);font-size:.9rem}
+#viewRoot{margin-top:10px;display:grid;gap:10px;background:var(--background)}
+.FlashcardSentence{perspective:1000px;touch-action:manipulation}.card-inner{position:relative;min-height:430px;transform-style:preserve-3d;transition:transform .3s}.FlashcardSentence.flipped .card-inner{transform:rotateY(180deg)}
+.FlashcardFront,.FlashcardBack{position:absolute;inset:0;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px;backface-visibility:hidden}.FlashcardBack{transform:rotateY(180deg);overflow:auto}
+.front-head{display:flex;justify-content:space-between;align-items:center}.SemanticImage{width:72px;height:72px;border-radius:50%;background:#DBEAFE;display:flex;align-items:center;justify-content:center;font-size:2rem}.topic-chip{font-size:.72rem;color:var(--primary);background:#EFF6FF;border:1px solid #BFDBFE;border-radius:999px;padding:4px 8px}
+.korean-row{display:flex;align-items:center;gap:8px}.korean,.quiz-korean{margin:10px 0 0;font-size:clamp(1.45rem,5.4vw,2rem);font-weight:800;line-height:1.2}.roman{margin:4px 0 0;color:var(--secondary)}.vietnamese{margin:6px 0 0;color:var(--primary);font-size:1.18rem;font-weight:700}
+.FrontPracticePanel{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px}.FrontPracticePanel button,.ActionButtonGrid button{min-height:42px;font-weight:600}
+.FrontPracticePanel button:disabled{opacity:.45;cursor:not-allowed}
+.CompletionToggle{margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:6px;background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:8px}.CompletionToggle span{font-size:.88rem;color:var(--secondary)}
+.flip-zone{margin-top:8px;width:100%;border:1px dashed #CBD5E1;background:#FFFBEB;color:#92400E;border-radius:10px;padding:10px;font-weight:600;position:relative;z-index:5}
+.flip-btn{position:relative;z-index:6}
+.back-top{display:flex;justify-content:space-between;align-items:center;gap:8px}.back-tabs{margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px}.tab-body{margin-top:8px}
+.brief{border:1px solid var(--border);border-radius:10px;padding:8px;margin-top:6px;font-size:.9rem}
+.AnalysisList{display:grid;gap:6px}.word-item{border:1px solid var(--border);border-radius:10px;padding:8px}.word-head{display:flex;justify-content:space-between;align-items:center}.word-item p{margin:4px 0 0;font-size:.9rem}
+.origin-tag{display:inline-block;margin-top:6px;border-radius:999px;padding:2px 8px;font-size:.74rem;font-weight:700}.tag-native{background:var(--tag-native)}.tag-sino{background:var(--tag-sino)}.tag-unknown{background:#F3F4F6}
+.ActionButtonGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.record-status{margin:6px 0 0;color:var(--secondary);font-size:.84rem}
+.quiz-title{margin:0;color:var(--secondary)}.quiz-options{margin-top:8px;display:grid;gap:6px}.quiz-option.ok{background:#DDF4E4;border-color:#86EFAC}.quiz-option.fail{background:#FDE2E2;border-color:#FCA5A5}.quiz-result{min-height:20px;color:var(--primary);font-weight:700}
+.empty{background:var(--section);border:1px dashed var(--border);border-radius:12px;padding:14px;text-align:center}.hidden{display:none!important}
+@media(max-width:767px){
+  .top-nav{grid-template-columns:repeat(3,1fr)}
+  .control-row,.FrontPracticePanel,.ActionButtonGrid{grid-template-columns:1fr}
+  .FlashcardSentence{perspective:none}
+  .card-inner{min-height:auto;transform:none!important}
+  .FlashcardFront,.FlashcardBack{position:relative;transform:none;backface-visibility:visible;overflow:visible}
+  .FlashcardBack{display:none;max-height:70vh;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:16px}
+  .FlashcardSentence.flipped .FlashcardFront{display:none}
+  .FlashcardSentence.flipped .FlashcardBack{display:block}
+  .korean,.quiz-korean{font-size:clamp(1.5rem,6.2vw,2rem)}
+  .roman{font-size:.9rem}
+  .vietnamese{font-size:1.05rem}
+  .front-head{gap:8px}
+  .SemanticImage{width:58px;height:58px;font-size:1.6rem}
+  .CompletionToggle{padding:10px}
+}
