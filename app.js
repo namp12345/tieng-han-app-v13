@@ -46,6 +46,32 @@ const BASE_LEXICON = {
 };
 
 const ICON_POOL = ['👤','🧳','☂️','🙏','💬','👥','🚌','🏨','🏮','🗺️','🍜','⏰','📸','🛍️','🚨','✈️','🎫','🧭','🌧️','🌉'];
+
+// Cache emoji đã fetch để không gọi API lại
+const _emojiCache = {};
+
+async function fetchSemanticEmoji(vi) {
+  if (_emojiCache[vi]) return _emojiCache[vi];
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 10,
+        messages: [{
+          role: 'user',
+          content: `Chọn 1 emoji duy nhất phù hợp nhất với nghĩa câu sau, chỉ trả về emoji không thêm gì khác:\n"${vi}"`
+        }]
+      })
+    });
+    const data = await res.json();
+    const emoji = data?.content?.[0]?.text?.trim() || null;
+    if (emoji) { _emojiCache[vi] = emoji; return emoji; }
+  } catch {}
+  return null;
+}
+
 const SENTENCES = buildSentences();
 
 function buildSentences() {
@@ -219,7 +245,13 @@ function FlashcardSentence(s) {
   const node = refs.flashcardTemplate.content.firstElementChild.cloneNode(true);
   const p = ensureProgress(s.id, s);
 
-  node.querySelector('[data-image]').textContent = s.image;
+  const imgEl = node.querySelector('[data-image]');
+  imgEl.textContent = s.image; // fallback ngay lập tức
+  // Async load emoji thông minh
+  fetchSemanticEmoji(s.vietnamese).then(emoji => {
+    if (emoji) imgEl.textContent = emoji;
+  });
+
   node.querySelector('[data-topic]').textContent = `${s.topic} · ${s.sessionTime}`;
   node.querySelector('[data-korean]').textContent = s.korean;
   node.querySelector('[data-roman]').textContent = s.romanization;
@@ -309,34 +341,101 @@ function bindBackTabs(node) {
 }
 
 async function renderAnalysis(root, s) {
-  const analysis = s.analysis || await buildAnalysisAuto(s.korean);
+  root.innerHTML = '<p style="color:var(--text-faint);font-size:.85rem;padding:6px 0">Đang phân tích từ vựng...</p>';
+  const analysis = s.analysis || await buildAnalysisAuto(s.korean, s.vietnamese);
   root.innerHTML = '';
   analysis.forEach(item => {
     const origin = normalizeOrigin(item.origin);
-    const cls = origin === 'thuần hàn' ? 'tag-native' : origin === 'hán hàn' ? 'tag-sino' : 'tag-unknown';
+    const originCls = origin === 'thuần hàn' ? 'tag-native' : origin === 'hán hàn' ? 'tag-sino' : 'tag-unknown';
+    const originLabel = origin === 'thuần hàn' ? '🟡 Thuần Hàn' : origin === 'hán hàn' ? `🔵 Hán Hàn${item.hanja ? ` (${item.hanja})` : ''}` : '⚪ Ngoại lai / Không rõ';
+    const typeIcon = getTypeIcon(item.type);
+
+    // Build morpheme breakdown nếu có
+    let morphemeHtml = '';
+    if (item.morphemes && item.morphemes.length) {
+      morphemeHtml = `
+        <div class="morpheme-row">
+          ${item.morphemes.map(m => `<span class="morpheme-chip">${m.part}<span class="morpheme-gloss">${m.gloss}</span></span>`).join('<span class="morpheme-plus">+</span>')}
+        </div>`;
+    }
+
     const row = document.createElement('article');
     row.className = 'word-item';
     row.innerHTML = `
-      <div class="word-head"><strong>${item.word}</strong><button class="AudioButton">🔊</button></div>
-      <p>- nghĩa: ${item.meaning_vi}</p>
-      ${item.root ? `<p>- gốc: ${item.root}</p>` : ''}
-      <p>- loại: ${item.type || 'từ vựng'}</p>
-      <span class="origin-tag ${cls}">${origin === 'thuần hàn' ? 'Thuần Hàn' : origin === 'hán hàn' ? `Hán Hàn${item.hanja ? ` (${item.hanja})` : ''}` : 'Không xác định'}</span>
+      <div class="word-head">
+        <div class="word-head-left">
+          <strong>${item.word}</strong>
+          ${item.root && item.root !== item.word ? `<span class="word-root">← ${item.root}</span>` : ''}
+        </div>
+        <button class="AudioButton" title="Nghe phát âm">🔊</button>
+      </div>
+      ${morphemeHtml}
+      <p class="word-meaning">📖 ${item.meaning_vi}</p>
+      <div class="word-tags">
+        <span class="type-tag">${typeIcon} ${item.type || 'từ vựng'}</span>
+        <span class="origin-tag ${originCls}">${originLabel}</span>
+      </div>
+      ${item.note ? `<p class="word-note">💡 ${item.note}</p>` : ''}
     `;
     row.querySelector('.AudioButton').addEventListener('click', () => speak(item.word, 0.8));
     root.append(row);
   });
 }
 
-async function buildAnalysisAuto(sentence) {
+async function buildAnalysisAuto(sentence, vi_sentence) {
+  // Thử dùng BASE_LEXICON trước cho các từ đơn
   const words = sentence.split(/\s+/).filter(Boolean);
-  const result = [];
-  for (const w of words) {
-    const b = BASE_LEXICON[w];
-    if (b) result.push({ word: w, ...b });
-    else result.push({ word: w, meaning_vi: await translateWord(w), root: guessRoot(w), type: guessType(w), origin: guessOrigin(w), hanja: '' });
+  const allInLexicon = words.every(w => BASE_LEXICON[w]);
+  if (allInLexicon) {
+    return words.map(w => ({ word: w, ...BASE_LEXICON[w] }));
   }
-  return result;
+
+  // Gọi Claude API để phân tích sâu
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `Phân tích ngôn ngữ học tiếng Hàn cho câu: "${sentence}" (nghĩa: "${vi_sentence}")
+
+Trả về JSON array, mỗi phần tử là một từ/cụm từ có nghĩa độc lập, theo cấu trúc sau:
+{
+  "word": "từ tiếng Hàn",
+  "root": "dạng gốc (nếu là động từ/tính từ biến thể thì ghi dạng tự điển -다)",
+  "meaning_vi": "nghĩa tiếng Việt ngắn gọn",
+  "type": "loại từ: 명사(danh từ) | 동사(động từ) | 형용사(tính từ) | 부사(trạng từ) | 조사(trợ từ) | 어미(đuôi động từ) | 접속사(liên từ) | 대명사(đại từ) | 수사(số từ) | 감탄사(thán từ) | 외래어(ngoại lai)",
+  "origin": "thuần hàn | hán hàn | ngoại lai",
+  "hanja": "chữ Hán nếu là hán hàn, để trống nếu không",
+  "morphemes": [{"part": "hình vị", "gloss": "chức năng ngắn"}],
+  "note": "mẹo ghi nhớ hoặc ngữ pháp đặc biệt ngắn (tối đa 1 câu, có thể để trống)"
+}
+
+Chỉ trả về JSON array, không thêm bất cứ điều gì khác.`
+        }]
+      })
+    });
+    const data = await res.json();
+    const text = data?.content?.[0]?.text?.trim() || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    if (Array.isArray(parsed) && parsed.length) return parsed;
+  } catch {}
+
+  // Fallback đơn giản
+  return words.map(w => ({
+    word: w,
+    meaning_vi: await translateWord(w).catch(() => `từ ${w}`),
+    root: guessRoot(w),
+    type: guessType(w),
+    origin: guessOrigin(w),
+    hanja: '',
+    morphemes: [],
+    note: ''
+  }));
 }
 
 async function translateWord(w) {
@@ -351,6 +450,20 @@ function guessRoot(w){ return w.endsWith('습니다') ? `${w.replace('습니다'
 function guessType(w){ return w.endsWith('습니다') ? 'đuôi lịch sự' : 'từ vựng'; }
 function guessOrigin(w){ return /(감사|시간|여권|확인)/.test(w) ? 'hán hàn' : 'thuần hàn'; }
 function normalizeOrigin(v){ const x=(v||'').toLowerCase(); if(x.includes('hán')) return 'hán hàn'; if(x.includes('thuần')) return 'thuần hàn'; return 'không xác định'; }
+
+function getTypeIcon(type) {
+  const t = (type || '').toLowerCase();
+  if (t.includes('danh') || t.includes('명사')) return '🟠';
+  if (t.includes('động') || t.includes('동사')) return '🔴';
+  if (t.includes('tính') || t.includes('형용')) return '🟣';
+  if (t.includes('trạng') || t.includes('부사')) return '🟡';
+  if (t.includes('trợ') || t.includes('조사')) return '⚫';
+  if (t.includes('đuôi') || t.includes('어미')) return '🔵';
+  if (t.includes('ngoại') || t.includes('외래')) return '⚪';
+  if (t.includes('đại') || t.includes('대명')) return '🟢';
+  if (t.includes('liên') || t.includes('접속')) return '🩵';
+  return '◻️';
+}
 
 function actListen(sentence, slow) {
   speak(sentence.korean, slow ? 0.75 : 1);

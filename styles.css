@@ -625,18 +625,113 @@ body {
 .word-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+}
+
+.word-head-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .word-head strong {
   font-family: 'Noto Sans KR', sans-serif;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 900;
   color: #fff;
 }
 
-.word-item p { margin: 5px 0 0; font-size: .88rem; color: var(--text-muted); font-weight: 600; }
+.word-root {
+  font-size: .78rem;
+  color: var(--text-faint);
+  font-weight: 600;
+  font-style: italic;
+}
+
+.word-meaning {
+  margin: 7px 0 0;
+  font-size: .9rem;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.word-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  color: var(--text-muted);
+  letter-spacing: .03em;
+}
+
+.word-note {
+  margin: 7px 0 0;
+  font-size: .8rem;
+  color: var(--gold);
+  font-weight: 600;
+  background: var(--gold-soft);
+  border-radius: 8px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255,209,102,.18);
+  line-height: 1.45;
+}
+
+/* Morpheme breakdown */
+.morpheme-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: rgba(79,195,247,.05);
+  border: 1px solid rgba(79,195,247,.12);
+  border-radius: var(--r-sm);
+}
+
+.morpheme-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: .88rem;
+  font-weight: 900;
+  color: var(--sky);
+  background: rgba(79,195,247,.1);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.morpheme-gloss {
+  font-family: 'Nunito', sans-serif;
+  font-size: .65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: .04em;
+}
+
+.morpheme-plus {
+  font-size: .85rem;
+  color: var(--text-faint);
+  font-weight: 700;
+  padding: 0 2px;
+}
 
 .origin-tag {
   display: inline-block;
