@@ -3,29 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>K-Tour Guide v14</title>
+  <title>K-Tour Guide v6</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="app">
-
     <header class="app-header">
-      <div class="header-inner">
-        <div class="header-logo">🇰🇷</div>
-        <div class="header-text">
-          <p class="eyebrow">Korean Daily Trainer</p>
-          <h1>K-Tour Guide</h1>
-          <p class="header-sub">Korean for Tour Guides</p>
-        </div>
-        <div class="header-streak" id="streakDisplay">
-          <span class="streak-count" id="streakCount">0</span>
-          <span class="streak-label">🔥 ngày</span>
-        </div>
-      </div>
+      <p class="eyebrow">Korean Daily Trainer</p>
+      <h1>K-Tour Guide v6</h1>
+      <p>Học tiếng Hàn thực chiến cho HDV du lịch</p>
     </header>
 
     <nav class="top-nav">
@@ -37,26 +24,19 @@
     </nav>
 
     <section id="controlPanel" class="controls">
-      <div class="controls-label">🎯 Bộ lọc học tập</div>
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input id="searchInput" type="search" placeholder="Tìm cụm từ tiếng Hàn...">
-      </div>
+      <input id="searchInput" type="search" placeholder="Tìm cụm từ...">
       <div class="control-row">
         <select id="topicFilter"></select>
-        <button id="randomBtn">🎲 Ngẫu nhiên</button>
+        <button id="randomBtn">Ngẫu nhiên</button>
       </div>
     </section>
 
     <section id="sessionPanel" class="session-panel"></section>
 
     <section id="progressPanel" class="progress">
-      <div class="progress-head">
-        <strong id="progressText">0/0 hoàn thành</strong>
-        <span class="progress-pct" id="progressPct">0%</span>
-      </div>
+      <strong id="progressText">0/0 đã học</strong>
       <div class="track"><div id="progressBar"></div></div>
-      <p id="statsText">Review bucket: 0 · Chưa hoàn thành: 0</p>
+      <p id="statsText">Yêu thích: 0 · Khó: 0</p>
     </section>
 
     <section id="viewRoot"></section>
@@ -69,40 +49,33 @@
               <div class="SemanticImage" data-image>🧭</div>
               <span class="topic-chip" data-topic></span>
             </div>
-
             <div class="korean-row">
               <p class="korean" data-korean></p>
-              <button class="AudioButton" data-front-audio title="Nghe">🔊</button>
+              <button class="AudioButton" data-front-audio>🔊</button>
             </div>
             <p class="roman" data-roman></p>
             <p class="vietnamese" data-vietnamese></p>
 
-            <div class="card-divider"></div>
-
             <div class="FrontPracticePanel">
-              <button data-action="listen">🔊 Nghe</button>
-              <button data-action="listenSlow">🐢 Chậm</button>
-              <button data-action="record">🎙️ Ghi âm</button>
-              <button data-action="selfPlay">▶️ Giọng tôi</button>
+              <button data-action="listen">Nghe</button>
+              <button data-action="listenSlow">Nghe chậm</button>
+              <button data-action="record">Ghi âm</button>
+              <button data-action="selfPlay">Nghe giọng tôi</button>
             </div>
-            <p class="record-status" data-record-status></p>
+            <p class="record-status" data-record-status>Chưa có bản ghi âm.</p>
 
             <div class="CompletionToggle">
-              <button class="completion-btn" data-action="complete">
-                <span data-completion-icon>○</span>
-                <span data-completion-label>Đánh dấu đã học</span>
-              </button>
+              <span data-completion-label>Chưa hoàn thành</span>
+              <button data-action="complete">Đã hoàn thành</button>
             </div>
 
-            <p class="flip-hint">Chạm đúp để xem phân tích từ vựng</p>
           </section>
 
           <section class="FlashcardBack">
             <div class="back-top">
               <strong data-korean-back></strong>
-              <button class="flip-btn" data-unflip>← Quay lại</button>
+              <button class="flip-btn" data-unflip>Quay lại</button>
             </div>
-            <div class="analysis-title">📖 Phân tích từ vựng</div>
             <div class="tab-body" data-panel="analysis">
               <div class="AnalysisList" data-analysis></div>
               <div class="brief"><b>Nghĩa tự nhiên:</b> <span data-natural></span></div>
@@ -114,17 +87,16 @@
 
     <template id="quizTemplate">
       <article class="QuizCard">
-        <p class="quiz-title">🎧 Nghe và chọn nghĩa đúng</p>
+        <p class="quiz-title">Nghe và chọn nghĩa đúng</p>
         <div class="korean-row">
           <p class="quiz-korean" data-quiz-korean></p>
-          <button class="AudioButton" data-quiz-audio title="Nghe">🔊</button>
+          <button class="AudioButton" data-quiz-audio>🔊</button>
         </div>
         <div class="quiz-options" data-quiz-options></div>
         <p class="quiz-result" data-quiz-result></p>
-        <button class="quiz-next" data-quiz-next>Câu tiếp theo →</button>
+        <button class="quiz-next" data-quiz-next>Câu tiếp</button>
       </article>
     </template>
-
   </main>
 
   <script src="phrases.js"></script>
