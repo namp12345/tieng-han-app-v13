@@ -632,9 +632,18 @@ body {
 .word-head-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
+.word-ko {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -.01em;
+}
+
+/* Keep backward compat with old strong */
 .word-head strong {
   font-family: 'Noto Sans KR', sans-serif;
   font-size: 1.25rem;
@@ -643,10 +652,10 @@ body {
 }
 
 .word-root {
-  font-size: .78rem;
-  color: var(--text-faint);
-  font-weight: 600;
+  font-size: .75rem;
+  color: var(--text-muted);
   font-style: italic;
+  font-weight: 600;
 }
 
 .word-meaning {
@@ -654,8 +663,10 @@ body {
   font-size: .9rem;
   color: var(--text);
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.45;
 }
+
+.word-item p { margin: 5px 0 0; font-size: .88rem; color: var(--text-muted); font-weight: 600; }
 
 .word-tags {
   display: flex;
@@ -668,27 +679,25 @@ body {
 .type-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   padding: 3px 10px;
   border-radius: 999px;
-  font-size: .72rem;
+  font-size: .71rem;
   font-weight: 800;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.1);
-  color: var(--text-muted);
-  letter-spacing: .03em;
+  background: rgba(79,195,247,.1);
+  border: 1px solid rgba(79,195,247,.22);
+  color: var(--sky);
 }
 
 .word-note {
   margin: 7px 0 0;
-  font-size: .8rem;
+  font-size: .79rem;
   color: var(--gold);
-  font-weight: 600;
-  background: var(--gold-soft);
+  background: rgba(255,209,102,.08);
   border-radius: 8px;
   padding: 5px 10px;
-  border: 1px solid rgba(255,209,102,.18);
-  line-height: 1.45;
+  border: 1px solid rgba(255,209,102,.2);
+  line-height: 1.5;
+  font-weight: 600;
 }
 
 /* Morpheme breakdown */
@@ -696,12 +705,12 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  margin-top: 8px;
-  padding: 8px 10px;
-  background: rgba(79,195,247,.05);
-  border: 1px solid rgba(79,195,247,.12);
-  border-radius: var(--r-sm);
+  gap: 5px;
+  margin-top: 9px;
+  padding: 7px 10px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 10px;
 }
 
 .morpheme-chip {
@@ -709,28 +718,33 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  font-family: 'Noto Sans KR', sans-serif;
-  font-size: .88rem;
-  font-weight: 900;
-  color: var(--sky);
   background: rgba(79,195,247,.1);
+  border: 1px solid rgba(79,195,247,.2);
   border-radius: 6px;
   padding: 3px 8px;
 }
 
+.morpheme-ko {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: .92rem;
+  font-weight: 900;
+  color: var(--sky);
+  line-height: 1;
+}
+
 .morpheme-gloss {
-  font-family: 'Nunito', sans-serif;
-  font-size: .65rem;
+  font-size: .62rem;
   font-weight: 700;
   color: var(--text-muted);
-  letter-spacing: .04em;
+  letter-spacing: .03em;
 }
 
 .morpheme-plus {
-  font-size: .85rem;
+  font-size: .9rem;
   color: var(--text-faint);
   font-weight: 700;
-  padding: 0 2px;
+  padding: 0 1px;
+  align-self: center;
 }
 
 .origin-tag {
