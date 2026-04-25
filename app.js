@@ -997,36 +997,489 @@ function guessRootKo(w) {
   return w;
 }
 
-// ── 6. Hàm typeLabel và originLabel (giữ nguyên) ─────────────
+// ════════════════════════════════════════════════════════════════
+//  HỆ THỐNG PHÂN TÍCH TỪ VỰNG SÂU — ĐẦY ĐỦ THEO 11 YÊU CẦU
+//  Mỗi item phân tích gồm: word, meaning_vi, root, structure,
+//  word_type, origin_type, hanja, han_viet, han_viet_meaning,
+//  pure_vietnamese, role_in_sentence, usage_note, components[]
+// ════════════════════════════════════════════════════════════════
+
+// ── Bảng Hán tự — âm Hán Việt — nghĩa ──────────────────────
+const HANJA_DB = {
+  '고생':  { hanja:'苦生', han_viet:'khổ sinh', meaning:'khổ = vất vả, sinh = sự sống → sự vất vả, cực nhọc' },
+  '관광':  { hanja:'觀光', han_viet:'quan quang', meaning:'quan = ngắm nhìn, quang = ánh sáng/phong cảnh → tham quan' },
+  '감사':  { hanja:'感謝', han_viet:'cảm tạ', meaning:'cảm = cảm nhận, tạ = tạ ơn → cảm ơn' },
+  '죄송':  { hanja:'罪悚', han_viet:'tội tủng', meaning:'tội = lỗi lầm, tủng = xấu hổ/sợ hãi → xin lỗi' },
+  '실례':  { hanja:'失禮', han_viet:'thất lễ', meaning:'thất = mất, lễ = lịch sự → mất phép, làm phiền' },
+  '환영':  { hanja:'歡迎', han_viet:'hoan nghênh', meaning:'hoan = vui mừng, nghênh = đón → chào mừng' },
+  '안내':  { hanja:'案內', han_viet:'án nội', meaning:'án = bàn/chỉ dẫn, nội = bên trong → hướng dẫn' },
+  '확인':  { hanja:'確認', han_viet:'xác nhận', meaning:'xác = chắc chắn, nhận = thừa nhận → xác nhận' },
+  '준비':  { hanja:'準備', han_viet:'chuẩn bị', meaning:'chuẩn = chuẩn xác, bị = sẵn sàng → chuẩn bị' },
+  '이동':  { hanja:'移動', han_viet:'di động', meaning:'di = dịch chuyển, động = chuyển động → di chuyển' },
+  '출발':  { hanja:'出發', han_viet:'xuất phát', meaning:'xuất = ra, phát = bắt đầu → xuất phát' },
+  '도착':  { hanja:'到着', han_viet:'đáo trước', meaning:'đáo = đến, trước = đặt/ở → đến nơi' },
+  '탑승':  { hanja:'搭乘', han_viet:'đáp thừa', meaning:'đáp = bước lên, thừa = cưỡi → lên xe/tàu/máy bay' },
+  '설명':  { hanja:'說明', han_viet:'thuyết minh', meaning:'thuyết = nói, minh = rõ ràng → giải thích rõ' },
+  '일정':  { hanja:'日程', han_viet:'nhật trình', meaning:'nhật = ngày, trình = chương trình → lịch trình' },
+  '공항':  { hanja:'空港', han_viet:'không cảng', meaning:'không = bầu trời, cảng = bến → sân bay' },
+  '여권':  { hanja:'旅券', han_viet:'lữ quyển', meaning:'lữ = du lịch, quyển = giấy tờ → hộ chiếu' },
+  '수하물':{ hanja:'手荷物', han_viet:'thủ hà vật', meaning:'thủ = tay, hà = gánh nặng, vật = đồ vật → hành lý' },
+  '입국':  { hanja:'入國', han_viet:'nhập quốc', meaning:'nhập = vào, quốc = nước → nhập cảnh' },
+  '심사':  { hanja:'審査', han_viet:'thẩm tra', meaning:'thẩm = xem xét kỹ, tra = kiểm tra → kiểm tra' },
+  '안전':  { hanja:'安全', han_viet:'an toàn', meaning:'an = bình yên, toàn = vẹn toàn → an toàn' },
+  '화장실':{ hanja:'化粧室', han_viet:'hóa trang thất', meaning:'hóa trang = trang điểm, thất = phòng → phòng vệ sinh' },
+  '관리':  { hanja:'管理', han_viet:'quản lý', meaning:'quản = cai quản, lý = xử lý → quản lý' },
+  '연락':  { hanja:'連絡', han_viet:'liên lạc', meaning:'liên = nối liền, lạc = tiếp xúc → liên lạc' },
+  '시간':  { hanja:'時間', han_viet:'thời gian', meaning:'thời = thời điểm, gian = khoảng → thời gian' },
+  '사진':  { hanja:'寫眞', han_viet:'tả chân', meaning:'tả = chép lại, chân = thật → ảnh chụp' },
+  '결제':  { hanja:'決濟', han_viet:'quyết tế', meaning:'quyết = giải quyết, tế = thanh toán → thanh toán' },
+  '현금':  { hanja:'現金', han_viet:'hiện kim', meaning:'hiện = có ngay, kim = vàng/tiền → tiền mặt' },
+  '환전':  { hanja:'換錢', han_viet:'hoán tiền', meaning:'hoán = đổi, tiền = tiền tệ → đổi tiền' },
+  '기념':  { hanja:'記念', han_viet:'kỷ niệm', meaning:'kỷ = ghi lại, niệm = nhớ → kỷ niệm' },
+  '특산':  { hanja:'特産', han_viet:'đặc sản', meaning:'đặc = đặc biệt, sản = sản phẩm → đặc sản' },
+  '면세':  { hanja:'免稅', han_viet:'miễn thuế', meaning:'miễn = không phải, thuế = thuế → miễn thuế' },
+  '보험':  { hanja:'保險', han_viet:'bảo hiểm', meaning:'bảo = bảo vệ, hiểm = nguy hiểm → bảo hiểm' },
+  '병원':  { hanja:'病院', han_viet:'bệnh viện', meaning:'bệnh = ốm, viện = cơ sở → bệnh viện' },
+  '약':    { hanja:'藥', han_viet:'dược', meaning:'dược = thuốc chữa bệnh → thuốc' },
+  '안녕':  { hanja:'安寧', han_viet:'an ninh', meaning:'an = bình an, ninh = yên ổn → bình an' },
+  '부탁':  { hanja:'付託', han_viet:'phó thác', meaning:'phó = giao, thác = nhờ cậy → nhờ vả' },
+  '장소':  { hanja:'場所', han_viet:'trường sở', meaning:'trường = nơi chốn, sở = chỗ ở → địa điểm' },
+  '방문':  { hanja:'訪問', han_viet:'phỏng vấn', meaning:'phỏng = thăm hỏi, vấn = hỏi → thăm viếng' },
+  '문화':  { hanja:'文化', han_viet:'văn hóa', meaning:'văn = chữ nghĩa, hóa = biến đổi → văn hóa' },
+  '전통':  { hanja:'傳統', han_viet:'truyền thống', meaning:'truyền = truyền lại, thống = mạch chính → truyền thống' },
+  '예절':  { hanja:'禮節', han_viet:'lễ tiết', meaning:'lễ = lịch sự, tiết = quy tắc → lễ nghi' },
+  '규정':  { hanja:'規定', han_viet:'quy định', meaning:'quy = quy tắc, định = xác định → quy định' },
+  '이용':  { hanja:'利用', han_viet:'lợi dụng', meaning:'lợi = có ích, dụng = sử dụng → sử dụng' },
+  '구매':  { hanja:'購買', han_viet:'cấu mãi', meaning:'cấu = mua, mãi = trao đổi → mua hàng' },
+  '주문':  { hanja:'注文', han_viet:'chú văn', meaning:'chú = rót/ghi, văn = chữ → đặt hàng/gọi món' },
+  '영수증':{ hanja:'領收證', han_viet:'lĩnh thâu chứng', meaning:'lĩnh = nhận, thâu = thu, chứng = bằng chứng → biên lai' },
+  '식당':  { hanja:'食堂', han_viet:'thực đường', meaning:'thực = ăn, đường = nhà/nơi → nhà ăn' },
+  '음식':  { hanja:'飮食', han_viet:'ẩm thực', meaning:'ẩm = uống, thực = ăn → đồ ăn uống' },
+  '좌석':  { hanja:'座席', han_viet:'tòa tịch', meaning:'tòa = chỗ ngồi, tịch = chiếu/ghế → chỗ ngồi' },
+  '번호':  { hanja:'番號', han_viet:'phiên hiệu', meaning:'phiên = lượt, hiệu = số → số thứ tự' },
+  '단체':  { hanja:'團體', han_viet:'đoàn thể', meaning:'đoàn = tập hợp, thể = tổ chức → đoàn/nhóm' },
+  '인원':  { hanja:'人員', han_viet:'nhân viên', meaning:'nhân = người, viên = thành viên → số người' },
+  '담당':  { hanja:'擔當', han_viet:'đảm đương', meaning:'đảm = gánh, đương = chịu trách nhiệm → phụ trách' },
+  '성함':  { hanja:'姓銜', han_viet:'tính hàm', meaning:'tính = họ, hàm = chức danh/tên → tên (kính)' },
+  '전망':  { hanja:'展望', han_viet:'triển vọng', meaning:'triển = mở ra, vọng = nhìn xa → tầm nhìn/cảnh quan' },
+  '야경':  { hanja:'夜景', han_viet:'dạ cảnh', meaning:'dạ = đêm, cảnh = cảnh vật → cảnh đêm' },
+  '통역':  { hanja:'通譯', han_viet:'thông dịch', meaning:'thông = thông suốt, dịch = dịch ngôn ngữ → phiên dịch' },
+  '비상구':{ hanja:'非常口', han_viet:'phi thường khẩu', meaning:'phi thường = khẩn cấp, khẩu = cửa → lối thoát hiểm' },
+  '관람':  { hanja:'觀覽', han_viet:'quan lãm', meaning:'quan = xem, lãm = ngắm → tham quan/xem' },
+  '고도':  { hanja:'高度', han_viet:'cao độ', meaning:'cao = cao, độ = mức → độ cao' },
+  '자유':  { hanja:'自由', han_viet:'tự do', meaning:'tự = tự mình, do = nguyên nhân/từ → tự do' },
+  '귀가':  { hanja:'歸家', han_viet:'quy gia', meaning:'quy = trở về, gia = nhà → về nhà' },
+  '귀국':  { hanja:'歸國', han_viet:'quy quốc', meaning:'quy = trở về, quốc = nước → về nước' },
+  '종료':  { hanja:'終了', han_viet:'chung liễu', meaning:'chung = kết thúc, liễu = xong → kết thúc' },
+  '진행':  { hanja:'進行', han_viet:'tiến hành', meaning:'tiến = đi tới, hành = thực hiện → tiến hành' },
+  '변경':  { hanja:'變更', han_viet:'biến canh', meaning:'biến = thay đổi, canh = đổi mới → thay đổi' },
+  '협조':  { hanja:'協助', han_viet:'hiệp trợ', meaning:'hiệp = cùng nhau, trợ = giúp đỡ → hợp tác' },
+  '추천':  { hanja:'推薦', han_viet:'thúc tiến', meaning:'thúc = đẩy, tiến = giới thiệu → giới thiệu/đề xuất' },
+  '보관':  { hanja:'保管', han_viet:'bảo quản', meaning:'bảo = giữ gìn, quản = quản lý → bảo quản/giữ' },
+  '신고':  { hanja:'申告', han_viet:'thân cáo', meaning:'thân = trình bày, cáo = báo cáo → khai báo' },
+  '촬영':  { hanja:'撮影', han_viet:'toát ảnh', meaning:'toát = thu thập, ảnh = hình ảnh → chụp/quay phim' },
+  '문자':  { hanja:'文字', han_viet:'văn tự', meaning:'văn = chữ viết, tự = ký tự → chữ/tin nhắn' },
+  '전화':  { hanja:'電話', han_viet:'điện thoại', meaning:'điện = điện lực, thoại = lời nói → điện thoại' },
+  '연결':  { hanja:'連結', han_viet:'liên kết', meaning:'liên = nối, kết = buộc → kết nối' },
+  '객실':  { hanja:'客室', han_viet:'khách thất', meaning:'khách = người khách, thất = phòng → phòng khách sạn' },
+  '비밀':  { hanja:'秘密', han_viet:'bí mật', meaning:'bí = ẩn, mật = kín → bí mật' },
+  '세탁':  { hanja:'洗濯', han_viet:'tẩy trạc', meaning:'tẩy = rửa sạch, trạc = giặt → giặt giũ' },
+  '분실':  { hanja:'紛失', han_viet:'phân thất', meaning:'phân = lộn xộn, thất = mất → thất lạc' },
+  '소지품':{ hanja:'所持品', han_viet:'sở trì phẩm', meaning:'sở = chỗ, trì = giữ, phẩm = đồ vật → đồ cá nhân' },
+  '귀중품':{ hanja:'貴重品', han_viet:'quý trọng phẩm', meaning:'quý = có giá trị, trọng = quan trọng, phẩm = đồ → đồ quý' },
+  '사고':  { hanja:'事故', han_viet:'sự cố', meaning:'sự = việc, cố = nguyên nhân/sự kiện → tai nạn, sự cố' },
+  '응급':  { hanja:'應急', han_viet:'ứng cấp', meaning:'ứng = đáp lại, cấp = khẩn cấp → cấp cứu' },
+  '증상':  { hanja:'症狀', han_viet:'chứng trạng', meaning:'chứng = triệu chứng, trạng = trạng thái → triệu chứng' },
+  '약국':  { hanja:'藥局', han_viet:'dược cục', meaning:'dược = thuốc, cục = cửa hàng → nhà thuốc' },
+  '경찰':  { hanja:'警察', han_viet:'cảnh sát', meaning:'cảnh = cảnh báo, sát = xem xét → cảnh sát' },
+  '조식':  { hanja:'朝食', han_viet:'triêu thực', meaning:'triêu = buổi sáng, thực = ăn → bữa sáng' },
+  '온수':  { hanja:'溫水', han_viet:'ôn thủy', meaning:'ôn = ấm, thủy = nước → nước nóng' },
+  '명소':  { hanja:'名所', han_viet:'danh sở', meaning:'danh = nổi tiếng, sở = nơi chốn → địa điểm nổi tiếng' },
+  '오전':  { hanja:'午前', han_viet:'ngọ tiền', meaning:'ngọ = 12 giờ trưa, tiền = trước → buổi sáng (trước trưa)' },
+  '오후':  { hanja:'午後', han_viet:'ngọ hậu', meaning:'ngọ = 12 giờ trưa, hậu = sau → buổi chiều (sau trưa)' },
+  '지금':  { hanja:'只今', han_viet:'chỉ kim', meaning:'chỉ = ngay, kim = bây giờ → ngay bây giờ' },
+  '잠시':  { hanja:'暫時', han_viet:'tạm thời', meaning:'tạm = tạm thời, thời = thời gian → một lúc' },
+  '항상':  { hanja:'恒常', han_viet:'hằng thường', meaning:'hằng = luôn luôn, thường = bình thường → luôn luôn' },
+};
+
+// ── Bảng đuôi ngữ pháp với giải thích đầy đủ ────────────────
+const GRAMMAR_ENDINGS = {
+  '겠습니다': { vi:'sẽ... (ý định lịch sự)', struct:'V + 겠 + 습니다', explain:'겠 = ý định/dự định, 습니다 = đuôi lịch sự trang trọng' },
+  '드리겠습니다': { vi:'tôi sẽ làm giúp (khiêm, lịch sự)', struct:'드리다 + 겠 + 습니다', explain:'드리다 = làm giúp (kính), 겠 = sẽ, 습니다 = lịch sự' },
+  '드릴게요': { vi:'tôi sẽ làm giúp quý khách', struct:'드리다 + ㄹ게요', explain:'드리다 = làm giúp (kính), ㄹ게요 = sẽ... (hứa hẹn thân mật lịch sự)' },
+  '드릴까요': { vi:'tôi có thể làm giúp được không?', struct:'드리다 + ㄹ까요', explain:'드리다 = làm giúp (kính), ㄹ까요 = ...được không? (hỏi đề nghị)' },
+  '드립니다': { vi:'làm giúp quý khách (lịch sự)', struct:'드리다 + ㅂ니다', explain:'드리다 = làm giúp (kính), ㅂ니다 = đuôi lịch sự' },
+  '주세요': { vi:'xin hãy... (nhờ lịch sự)', struct:'V + 아/어 + 주세요', explain:'주다 = cho/làm giúp, 세요 = kính ngữ yêu cầu nhẹ nhàng' },
+  '주십시오': { vi:'xin vui lòng... (trang trọng)', struct:'V + 아/어 + 주십시오', explain:'주다 = cho/làm giúp, 십시오 = kính ngữ mệnh lệnh trang trọng nhất' },
+  '주시면': { vi:'nếu quý khách vui lòng...', struct:'주다 + 시 + 면', explain:'주다 = cho, 시 = kính ngữ, 면 = điều kiện nếu' },
+  '주실': { vi:'sẽ... giúp (kính)', struct:'주다 + 시 + ㄹ', explain:'주다 = cho, 시 = kính ngữ, ㄹ = tương lai/dự định' },
+  '주셔서': { vi:'vì quý khách đã... giúp (kính)', struct:'주다 + 시 + 어서', explain:'주시다 = làm giúp (kính), 어서 = vì/do → diễn đạt lý do' },
+  '합니다': { vi:'làm (lịch sự trang trọng)', struct:'하다 + ㅂ니다', explain:'하다 = làm, ㅂ니다 = đuôi lịch sự trang trọng' },
+  '하겠습니다': { vi:'sẽ làm (ý định lịch sự)', struct:'하다 + 겠 + 습니다', explain:'하다 = làm, 겠 = sẽ/ý định, 습니다 = lịch sự' },
+  '하세요': { vi:'xin hãy làm (kính)', struct:'하다 + 시 + 어요', explain:'하다 = làm, 시 = kính ngữ, 어요 = đuôi thân mật lịch sự' },
+  '하십시오': { vi:'xin vui lòng làm (trang trọng)', struct:'하다 + 시 + ㅂ시오', explain:'하다 = làm, 시 = kính ngữ, ㅂ시오 = mệnh lệnh trang trọng' },
+  '습니다': { vi:'(đuôi kết thúc lịch sự trang trọng)', struct:'V/Adj + 습니다', explain:'Dùng sau phụ âm cuối. Hình thức lịch sự nhất trong văn nói' },
+  'ㅂ니다': { vi:'(đuôi kết thúc lịch sự trang trọng)', struct:'V/Adj + ㅂ니다', explain:'Dùng sau nguyên âm cuối. Tương đương 습니다' },
+  '입니다': { vi:'là... (lịch sự)', struct:'N + 입니다', explain:'이다 = là, ㅂ니다 = lịch sự → khẳng định "là N"' },
+  '세요': { vi:'xin... / hãy... (kính ngữ nhẹ nhàng)', struct:'V + (으)세요', explain:'시 = kính ngữ, 어요 = đuôi thân mật lịch sự → nhờ hoặc hỏi lịch sự' },
+  '십시오': { vi:'xin vui lòng... (trang trọng nhất)', struct:'V + (으)십시오', explain:'시 = kính ngữ, ㅂ시오 = mệnh lệnh trang trọng → dùng với đám đông' },
+  '느라': { vi:'vì.../trong quá trình... (lý do/bận)', struct:'V + 느라', explain:'Đuôi nối chỉ lý do hoặc trạng thái bận rộn gây ra kết quả ở mệnh đề sau' },
+  '으시': { vi:'(kính ngữ chủ thể)', struct:'V + 으시', explain:'Thêm vào động từ/tính từ để tôn trọng chủ thể (người thực hiện hành động)' },
+  '셨': { vi:'đã... (quá khứ kính ngữ)', struct:'V + 시 + 었', explain:'시 = kính ngữ, 었 = quá khứ → hành động đã xảy ra, nói với sự tôn trọng' },
+  '았어요': { vi:'đã... (quá khứ thân mật)', struct:'V + 았 + 어요', explain:'았/었 = quá khứ, 어요 = lịch sự thân mật' },
+  '겠어요': { vi:'sẽ... (ý định thân mật)', struct:'V + 겠 + 어요', explain:'겠 = ý định, 어요 = lịch sự thân mật' },
+  'ㄹ게요': { vi:'tôi sẽ... (hứa/ý định)', struct:'V + ㄹ게요', explain:'ㄹ = tương lai, 게요 = hứa hẹn/ý định với người nghe' },
+  'ㄹ까요': { vi:'...nhé? / ...được không?', struct:'V + ㄹ까요', explain:'Hỏi ý kiến hoặc đề nghị làm cùng' },
+  '으면': { vi:'nếu...', struct:'V/Adj + 으면', explain:'Điều kiện: nếu vế trước xảy ra thì vế sau xảy ra' },
+  '면': { vi:'nếu...', struct:'V/Adj + 면', explain:'Điều kiện sau nguyên âm: nếu...' },
+  '아서': { vi:'vì.../rồi...', struct:'V + 아서', explain:'Chỉ lý do hoặc hành động liên tiếp (thứ tự thời gian)' },
+  '어서': { vi:'vì.../rồi...', struct:'V + 어서', explain:'Chỉ lý do hoặc hành động liên tiếp sau nguyên âm không phải ㅏ/ㅗ' },
+  '아요': { vi:'(đuôi thân mật lịch sự)', struct:'V/Adj + 아요', explain:'Lịch sự thân mật, dùng trong hội thoại hàng ngày' },
+  '어요': { vi:'(đuôi thân mật lịch sự)', struct:'V/Adj + 어요', explain:'Lịch sự thân mật sau nguyên âm không phải ㅏ/ㅗ' },
+  '고': { vi:'và.../rồi...', struct:'V + 고', explain:'Nối hai hành động: V1 và V2, hoặc V1 rồi V2' },
+  '지': { vi:'(đuôi phủ định/hỏi)', struct:'V + 지', explain:'Dùng trước 않다 để phủ định, hoặc cuối câu hỏi thân mật' },
+  '마세요': { vi:'xin đừng... (kính)', struct:'V + 지 + 마세요', explain:'지 마세요 = đừng làm, lịch sự nhẹ nhàng' },
+  '됩니다': { vi:'được phép / trở thành (lịch sự)', struct:'되다 + ㅂ니다', explain:'되다 = được/trở thành, ㅂ니다 = lịch sự' },
+  '있습니다': { vi:'có / tồn tại (lịch sự)', struct:'있다 + 습니다', explain:'있다 = có/tồn tại, 습니다 = lịch sự' },
+  '없습니다': { vi:'không có (lịch sự)', struct:'없다 + 습니다', explain:'없다 = không có, 습니다 = lịch sự' },
+  '이에요': { vi:'là... (thân mật lịch sự)', struct:'N + 이에요', explain:'이다 = là, 에요 = thân mật lịch sự → sau phụ âm' },
+  '예요': { vi:'là... (thân mật lịch sự)', struct:'N + 예요', explain:'이다 = là, 에요 = thân mật lịch sự → sau nguyên âm' },
+  '겠습니까': { vi:'sẽ...không? (hỏi trang trọng)', struct:'V + 겠 + 습니까', explain:'겠 = sẽ, 습니까 = câu hỏi lịch sự trang trọng' },
+  '셨나요': { vi:'đã...chưa/không? (hỏi kính)', struct:'V + 시 + 었 + 나요', explain:'시 = kính ngữ, 었 = quá khứ, 나요 = hỏi thân mật' },
+  '시면': { vi:'nếu quý khách...', struct:'V + 시 + 면', explain:'시 = kính ngữ, 면 = điều kiện nếu → kính trọng người nghe' },
+  '겠습니다': { vi:'sẽ... (ý định lịch sự)', struct:'V + 겠 + 습니다', explain:'겠 = ý định/dự định, 습니다 = lịch sự trang trọng' },
+};
+
+// ── Bảng trợ từ với giải thích ──────────────────────────────
+const PARTICLE_DB = {
+  '을': { vi:'(trợ từ tân ngữ — sau phụ âm)', role:'Đánh dấu tân ngữ trực tiếp của động từ' },
+  '를': { vi:'(trợ từ tân ngữ — sau nguyên âm)', role:'Đánh dấu tân ngữ trực tiếp của động từ' },
+  '이': { vi:'(trợ từ chủ ngữ — sau phụ âm)', role:'Đánh dấu chủ ngữ của câu' },
+  '가': { vi:'(trợ từ chủ ngữ — sau nguyên âm)', role:'Đánh dấu chủ ngữ của câu' },
+  '은': { vi:'(chủ đề — sau phụ âm)', role:'Đánh dấu chủ đề, so sánh hoặc tương phản' },
+  '는': { vi:'(chủ đề — sau nguyên âm)', role:'Đánh dấu chủ đề câu' },
+  '에': { vi:'ở, tại, đến (nơi chốn hoặc thời gian)', role:'Nơi chốn tĩnh hoặc thời điểm' },
+  '에서': { vi:'tại, ở (nơi hành động xảy ra)', role:'Nơi chốn động — nơi hành động diễn ra' },
+  '로': { vi:'đến, hướng về, bằng', role:'Hướng di chuyển hoặc phương tiện' },
+  '으로': { vi:'đến, hướng về, bằng (sau phụ âm)', role:'Hướng di chuyển hoặc phương tiện' },
+  '와': { vi:'và, cùng với (sau nguyên âm)', role:'Liên kết danh từ hoặc chỉ sự đồng hành' },
+  '과': { vi:'và, cùng với (sau phụ âm)', role:'Liên kết danh từ hoặc chỉ sự đồng hành' },
+  '도': { vi:'cũng, nữa', role:'Thêm vào để chỉ sự bao gồm' },
+  '만': { vi:'chỉ, mới', role:'Giới hạn — chỉ mình N' },
+  '까지': { vi:'đến, cho đến', role:'Điểm kết thúc về không gian hoặc thời gian' },
+  '부터': { vi:'từ, kể từ', role:'Điểm bắt đầu về không gian hoặc thời gian' },
+  '에게': { vi:'cho, tới (người)', role:'Đích của hành động — người nhận' },
+  '께': { vi:'cho, tới (người — kính ngữ)', role:'Đích kính trọng — dùng khi tặng/nói với người trên' },
+  '의': { vi:'của', role:'Sở hữu' },
+  '씩': { vi:'mỗi người, từng', role:'Phân phối đều' },
+  '마다': { vi:'mỗi, từng', role:'Lặp lại với mỗi đơn vị' },
+  '한테': { vi:'cho, tới (người — thân mật)', role:'Đích của hành động, dùng thân mật hơn 에게' },
+  '에서는': { vi:'ở... thì (chủ đề nơi chốn)', role:'Nêu chủ đề là địa điểm' },
+  '에서만': { vi:'chỉ ở...', role:'Giới hạn địa điểm' },
+  '이나': { vi:'hoặc (sau phụ âm)', role:'Lựa chọn hoặc liệt kê' },
+  '나': { vi:'hoặc (sau nguyên âm)', role:'Lựa chọn hoặc liệt kê' },
+};
+
+// ── Từ điển mở rộng (key = dạng xuất hiện trong câu) ────────
+// Bổ sung thêm vào STEM_DICT các biến thể hay gặp
+const EXTRA_WORD_DB = {
+  '오시느라':    { vi:'vì quý khách đã đến / trong quá trình đi đến', root:'오다', struct:'오다 + 시(kính) + 느라(lý do)', type:'동사', origin:'thuần hàn', note:'느라 = đuôi chỉ lý do/trạng thái bận rộn gây kết quả ở vế sau' },
+  '많으셨습니다':{ vi:'đã vất vả nhiều (kính ngữ/lịch sự)', root:'많다', struct:'많다 + 으시(kính) + 었(quá khứ) + 습니다(lịch sự)', type:'형용사', origin:'thuần hàn', note:'많다 = nhiều, chia kính ngữ và lịch sự trang trọng' },
+  '가져다':      { vi:'lấy đem đến / mang đến', root:'가지다 / 가져오다', struct:'가지다 + 아/어다', type:'동사', origin:'thuần hàn', note:'동사 liên kết: lấy rồi đem đến — KHÔNG phải danh từ' },
+  '트롤리를':    { vi:'xe đẩy hành lý (tân ngữ)', root:'트롤리', struct:'트롤리(trolley) + 를(trợ từ tân ngữ)', type:'명사+조사', origin:'ngoại lai', note:'트롤리 = từ tiếng Anh "trolley", 를 = trợ từ tân ngữ' },
+  '만나서':      { vi:'vì gặp được / sau khi gặp', root:'만나다', struct:'만나다 + 아서', type:'동사', origin:'thuần hàn', note:'아서 = đuôi chỉ lý do hoặc hành động liên tiếp' },
+  '오시느라':    { vi:'vì quý khách đã đến / trong quá trình đi đến', root:'오다', struct:'오다 + 시 + 느라', type:'동사', origin:'thuần hàn', note:'' },
+  '내리겠습니다':{ vi:'chúng tôi sẽ xuống', root:'내리다', struct:'내리다 + 겠 + 습니다', type:'동사', origin:'thuần hàn', note:'' },
+  '올라가겠습니다':{ vi:'chúng ta sẽ đi lên', root:'올라가다', struct:'올라가다 + 겠 + 습니다', type:'동사', origin:'thuần hàn', note:'' },
+  '모이겠습니다':{ vi:'sẽ tập hợp', root:'모이다', struct:'모이다 + 겠 + 습니다', type:'동사', origin:'thuần hàn', note:'' },
+  '돌아오겠습니다':{ vi:'sẽ quay lại', root:'돌아오다', struct:'돌아오다 + 겠 + 습니다', type:'동사', origin:'thuần hàn', note:'' },
+  '따라오세요':  { vi:'xin hãy đi theo', root:'따라오다', struct:'따라오다 + 세요', type:'동사', origin:'thuần하àn', note:'' },
+  '앉으세요':    { vi:'xin mời ngồi', root:'앉다', struct:'앉다 + 으세요', type:'동사', origin:'thuần hàn', note:'' },
+  '보여주세요':  { vi:'xin cho xem', root:'보이다 / 보여주다', struct:'보여 + 주세요', type:'동사', origin:'thuần hàn', note:'' },
+  '챙기세요':    { vi:'hãy chuẩn bị / hãy mang theo', root:'챙기다', struct:'챙기다 + 세요', type:'동사', origin:'thuần하àn', note:'' },
+  '걱정하지':    { vi:'đừng lo lắng (trước 마세요)', root:'걱정하다', struct:'걱정하다 + 지', type:'동사', origin:'hán hàn', note:'걱정하지 마세요 = đừng lo lắng' },
+  '이동하지':    { vi:'đừng di chuyển (trước 마세요)', root:'이동하다', struct:'이동하다 + 지', type:'동사', origin:'hán하àn', note:'' },
+  '만지지':      { vi:'đừng chạm vào (trước 마세요)', root:'만지다', struct:'만지다 + 지', type:'동사', origin:'thuần하àn', note:'' },
+  '버리지':      { vi:'đừng vứt (trước 마세요)', root:'버리다', struct:'버리다 + 지', type:'동사', origin:'thuần하àn', note:'' },
+  '잃어버리지':  { vi:'đừng để mất (trước 마세요)', root:'잃어버리다', struct:'잃어버리다 + 지', type:'동사', origin:'thuần하àn', note:'' },
+  '손가락질하지':{ vi:'đừng chỉ tay vào (trước 마세요)', root:'손가락질하다', struct:'손가락질 + 하다 + 지', type:'동사', origin:'thuần하àn', note:'손가락질 = hành động chỉ tay, bất lịch sự' },
+  '말하지':      { vi:'đừng nói (trước 마세요)', root:'말하다', struct:'말하다 + 지', type:'동사', origin:'thuần하àn', note:'' },
+  '내밀지':      { vi:'đừng chìa ra (trước 마세요)', root:'내밀다', struct:'내밀다 + 지', type:'동사', origin:'thuần하àn', note:'' },
+  '피울':        { vi:'sẽ hút (thuốc)', root:'피우다', struct:'피우다 + ㄹ', type:'동사', origin:'thuần하àn', note:'피울 수 없습니다 = không được hút' },
+  '드시고':      { vi:'xin hãy dùng rồi...', root:'드시다', struct:'드시다 + 고', type:'동사', origin:'thuần하àn', note:'드시다 = kính ngữ của 먹다/마시다 (ăn/uống)' },
+  '드세요':      { vi:'xin mời dùng', root:'드시다', struct:'드시다 + 어요', type:'동사', origin:'thuần하àn', note:'드시다 = kính ngữ của 먹다 (ăn)' },
+  '드셨나요':    { vi:'quý khách đã dùng chưa?', root:'드시다', struct:'드시다 + 었 + 나요', type:'동사', origin:'thuần하àn', note:'' },
+  '드십니다':    { vi:'xin mời dùng (thông báo)', root:'드시다', struct:'드시다 + ㅂ니다', type:'동사', origin:'thuần하àn', note:'' },
+  '오셨나요':    { vi:'quý khách đã đến chưa?', root:'오시다', struct:'오시다 + 었 + 나요', type:'동사', origin:'thuần하àn', note:'' },
+  '계시면':      { vi:'nếu quý khách có / ở đây', root:'계시다', struct:'계시다 + 면', type:'동사', origin:'thuần하àn', note:'계시다 = kính ngữ của 있다' },
+  '계신':        { vi:'quý khách (đang ở/có)', root:'계시다', struct:'계시다 + ㄴ', type:'동사', origin:'thuần하àn', note:'계시다 = kính ngữ của 있다' },
+  '필요하신가요':{ vi:'quý khách có cần không?', root:'필요하다', struct:'필요하다 + 시 + ㄴ가요', type:'형용사', origin:'hán hàn', note:'필요 = cần thiết, 하시다 = kính ngữ' },
+  '원하시면':    { vi:'nếu quý khách muốn', root:'원하다', struct:'원하다 + 시 + 면', type:'동사', origin:'hán hàn', note:'원 = mong muốn (願)' },
+  '불편한':      { vi:'bất tiện, không thoải mái', root:'불편하다', struct:'불편하다 + ㄴ(định ngữ)', type:'형용사', origin:'hán hàn', note:'불편 = bất tiện (不便)' },
+  '안전하게':    { vi:'một cách an toàn', root:'안전하다', struct:'안전하다 + 게', type:'부사', origin:'hán hàn', note:'게 = hậu tố trạng từ hóa tính từ' },
+  '즐거우셨길':  { vi:'mong rằng đã vui vẻ (kính)', root:'즐겁다', struct:'즐겁다 + 으시 + 었 + 길', type:'형용사', origin:'thuần hàn', note:'길 = đuôi hy vọng vào quá khứ người khác' },
+  '되시길':      { vi:'mong rằng... (kính)', root:'되다', struct:'되다 + 시 + 길', type:'동사', origin:'thuần hàn', note:'길 = đuôi hy vọng/mong muốn' },
+  '감사드립니다':{ vi:'xin trân trọng cảm ơn (khiêm)', root:'감사하다 + 드리다', struct:'감사 + 드리다 + ㅂ니다', type:'동사', origin:'hán hàn', note:'드리다 = dạng khiêm nhường của 주다, khiêm tốn hơn 감사합니다' },
+  '부탁드립니다':{ vi:'xin được nhờ cậy (khiêm)', root:'부탁하다 + 드리다', struct:'부탁 + 드리다 + ㅂ니다', type:'동사', origin:'hán hàn', note:'부탁 = nhờ vả, 드리다 = dạng khiêm nhường' },
+  '말씀해':      { vi:'xin hãy nói / thưa (kính)', root:'말씀하다', struct:'말씀하다 + 어', type:'동사', origin:'thuần hàn', note:'말씀 = lời nói (kính ngữ của 말)' },
+  '물어보세요':  { vi:'xin hãy hỏi', root:'물어보다', struct:'물어보다 + 세요', type:'동사', origin:'thuần hàn', note:'' },
+  '알려':        { vi:'thông báo, cho biết', root:'알리다', struct:'알리다 + 어', type:'동사', origin:'thuần hàn', note:'알리다 = thông báo (사동형 của 알다)' },
+  '보내드릴게요':{ vi:'tôi sẽ gửi cho quý khách', root:'보내다 + 드리다', struct:'보내다 + 아/어 + 드리다 + ㄹ게요', type:'동사', origin:'thuần hàn', note:'드리다 = dạng kính của 주다' },
+  '찾겠습니다':  { vi:'tôi sẽ tìm', root:'찾다', struct:'찾다 + 겠 + 습니다', type:'동사', origin:'thuần hàn', note:'' },
+  '정리하겠습니다':{ vi:'tôi sẽ sắp xếp/tổng kết', root:'정리하다', struct:'정리 + 하다 + 겠 + 습니다', type:'동사', origin:'hán hàn', note:'정리 = chỉnh lý (整理)' },
+  '마무리하겠습니다':{ vi:'tôi sẽ kết thúc/hoàn thành', root:'마무리하다', struct:'마무리 + 하다 + 겠 + 습니다', type:'동사', origin:'thuần hàn', note:'' },
+  '진행하겠습니다':{ vi:'tôi sẽ tiến hành', root:'진행하다', struct:'진행 + 하다 + 겠 + 습니다', type:'동사', origin:'hán hàn', note:'진행 = tiến hành (進行)' },
+  '설명드리겠습니다':{ vi:'tôi xin giải thích (khiêm)', root:'설명하다 + 드리다', struct:'설명 + 드리다 + 겠 + 습니다', type:'동사', origin:'hán hàn', note:'설명 = thuyết minh, 드리다 = khiêm nhường' },
+  '안내해':      { vi:'hướng dẫn (dạng liên kết)', root:'안내하다', struct:'안내하다 + 어', type:'동사', origin:'hán hàn', note:'' },
+  '안내합니다':  { vi:'hướng dẫn (lịch sự)', root:'안내하다', struct:'안내 + 하다 + ㅂ니다', type:'동사', origin:'hán hàn', note:'' },
+  '이동하겠습니다':{ vi:'chúng ta sẽ di chuyển', root:'이동하다', struct:'이동 + 하다 + 겠 + 습니다', type:'동사', origin:'hán hàn', note:'' },
+  '이동하세요':  { vi:'xin hãy di chuyển', root:'이동하다', struct:'이동 + 하다 + 세요', type:'동사', origin:'hán hàn', note:'' },
+  '이동해':      { vi:'di chuyển (dạng liên kết)', root:'이동하다', struct:'이동 + 하다 + 어', type:'동사', origin:'hán hàn', note:'' },
+  '확인하겠습니다':{ vi:'tôi sẽ kiểm tra', root:'확인하다', struct:'확인 + 하다 + 겠 + 습니다', type:'동사', origin:'hán hàn', note:'' },
+  '확인하고':    { vi:'kiểm tra rồi...', root:'확인하다', struct:'확인 + 하다 + 고', type:'동사', origin:'hán hàn', note:'' },
+  '확인하세요':  { vi:'xin hãy kiểm tra', root:'확인하다', struct:'확인 + 하다 + 세요', type:'동사', origin:'hán hàn', note:'' },
+  '확인해':      { vi:'kiểm tra (dạng liên kết)', root:'확인하다', struct:'확인 + 하다 + 어', type:'동사', origin:'hán hàn', note:'' },
+  '준비하세요':  { vi:'xin hãy chuẩn bị', root:'준비하다', struct:'준비 + 하다 + 세요', type:'동사', origin:'hán hàn', note:'' },
+  '준비하시면':  { vi:'nếu quý khách chuẩn bị', root:'준비하다', struct:'준비 + 하다 + 시 + 면', type:'동사', origin:'hán hàn', note:'' },
+  '준비했습니다':{ vi:'đã chuẩn bị', root:'준비하다', struct:'준비 + 하다 + 었 + 습니다', type:'동사', origin:'hán hàn', note:'' },
+  '준비해':      { vi:'chuẩn bị (dạng liên kết)', root:'준비하다', struct:'준비 + 하다 + 어', type:'동사', origin:'hán hàn', note:'' },
+  '출발하겠습니다':{ vi:'chúng ta sẽ xuất phát', root:'출발하다', struct:'출발 + 하다 + 겠 + 습니다', type:'동사', origin:'hán hàn', note:'' },
+  '출발하니':    { vi:'vì sắp xuất phát...', root:'출발하다', struct:'출발 + 하다 + 니', type:'동사', origin:'hán hàn', note:'니 = đuôi giải thích lý do' },
+  '출발합니다':  { vi:'(chúng ta) xuất phát', root:'출발하다', struct:'출발 + 하다 + ㅂ니다', type:'동사', origin:'hán hàn', note:'' },
+  '도착합니다':  { vi:'(chúng ta) sắp đến', root:'도착하다', struct:'도착 + 하다 + ㅂ니다', type:'동사', origin:'hán hàn', note:'' },
+  '탑승하겠습니다':{ vi:'chúng ta sẽ lên xe/tàu', root:'탑승하다', struct:'탑승 + 하다 + 겠 + 습니다', type:'동사', origin:'hán hàn', note:'' },
+  '탑승해':      { vi:'lên (xe/tàu) — dạng liên kết', root:'탑승하다', struct:'탑승 + 하다 + 어', type:'동사', origin:'hán hàn', note:'' },
+  '결제하세요':  { vi:'xin hãy thanh toán', root:'결제하다', struct:'결제 + 하다 + 세요', type:'동사', origin:'hán hàn', note:'' },
+  '이용해':      { vi:'sử dụng (dạng liên kết)', root:'이용하다', struct:'이용 + 하다 + 어', type:'동사', origin:'hán hàn', note:'' },
+  '공유해':      { vi:'chia sẻ (dạng liên kết)', root:'공유하다', struct:'공유 + 하다 + 어', type:'동사', origin:'hán hàn', note:'' },
+  '추천해':      { vi:'giới thiệu (dạng liên kết)', root:'추천하다', struct:'추천 + 하다 + 어', type:'동사', origin:'hán hàn', note:'' },
+  '오시느라':    { vi:'vì quý khách đã vất vả đến', root:'오다', struct:'오다 + 시 + 느라', type:'동사', origin:'thuần hàn', note:'느라 = đuôi chỉ lý do bận rộn' },
+  '오시느라':    { vi:'vì quý khách đã đến', root:'오다', struct:'오다 + 시 + 느라', type:'동사', origin:'thuần hàn', note:'' },
+};
+
+// ── Hàm phân tích chính — phiên bản đầy đủ ──────────────────
+function analyzeWordFull(w) {
+  const clean = w.replace(/[?!,.]$/,'');
+
+  // 0. Tra bảng EXTRA_WORD_DB (ưu tiên cao nhất — các biến thể hay gặp)
+  if (EXTRA_WORD_DB[clean]) {
+    const e = EXTRA_WORD_DB[clean];
+    const originClean = normOrigin(e.origin || 'thuần hàn');
+    const hanjaInfo = lookupHanja(clean, e.root || '');
+    return {
+      word: w,
+      meaning_vi: e.vi,
+      root: e.root || clean,
+      structure: e.struct || '',
+      word_type: e.type || '동사',
+      origin_type: originClean,
+      hanja: hanjaInfo ? hanjaInfo.hanja : '',
+      han_viet: hanjaInfo ? hanjaInfo.han_viet : '',
+      han_viet_meaning: hanjaInfo ? hanjaInfo.meaning : '',
+      pure_vietnamese: e.vi,
+      usage_note: e.note || '',
+      components: [],
+    };
+  }
+
+  // 1. Tra STEM_DICT trực tiếp
+  if (STEM_DICT[clean]) {
+    const [vi, type, origin, hanja] = STEM_DICT[clean];
+    const hanjaInfo = lookupHanja(clean, '');
+    return buildItem(w, vi, clean, '', type, normOrigin(origin), hanja, hanjaInfo, '', []);
+  }
+
+  // 2. Thử tách trợ từ
+  for (const {sfx, vi: pvi} of PARTICLE_SFXS) {
+    if (clean.endsWith(sfx) && clean.length > sfx.length) {
+      const stem = clean.slice(0, clean.length - sfx.length);
+      const stemEntry = lookupStem(stem);
+      if (stemEntry) {
+        const [vi, type, origin, hanja_raw] = stemEntry;
+        const hanjaInfo = lookupHanja(stem, '');
+        const pInfo = PARTICLE_DB[sfx] || { vi: pvi, role: '' };
+        return buildItem(
+          w, vi, stem, `${stem} + ${sfx}`, type, normOrigin(origin), hanja_raw || (hanjaInfo ? hanjaInfo.hanja : ''),
+          hanjaInfo, '',
+          [
+            { ko: stem, vi: vi, role: 'Danh từ/Từ chính' },
+            { ko: sfx,  vi: pInfo.vi, role: `Trợ từ — ${pInfo.role}` }
+          ]
+        );
+      }
+    }
+  }
+
+  // 3. Thử tách đuôi động từ
+  for (const {sfx, vi: evi, type: etype, base_fn} of VERB_ENDINGS) {
+    if (clean.endsWith(sfx) && clean.length > sfx.length) {
+      const stemPart = clean.slice(0, clean.length - sfx.length);
+      const baseForm = base_fn(stemPart);
+      const stemEntry = lookupStem(stemPart) || lookupStem(baseForm);
+      const grammarInfo = GRAMMAR_ENDINGS[sfx];
+      const hanjaInfo = lookupHanja(stemPart, baseForm);
+      const originGuess = stemEntry ? normOrigin(stemEntry[2]) : guessOriginKo(stemPart);
+      const meaning = stemEntry ? stemEntry[0] : '';
+      const type = stemEntry ? stemEntry[1] : etype;
+      const struct = grammarInfo ? grammarInfo.struct : `${stemPart} + ${sfx}`;
+      const components = stemPart ? [
+        { ko: stemPart, vi: meaning || `(gốc: ${baseForm})`, role: typeFullLabel(type) },
+        { ko: sfx, vi: grammarInfo ? grammarInfo.vi : evi, role: `Đuôi ngữ pháp — ${grammarInfo ? grammarInfo.explain : ''}` },
+      ] : [];
+      return buildItem(
+        w,
+        meaning ? `${meaning}${grammarInfo ? ' ' + grammarInfo.vi : ''}` : `${stemPart}... ${evi}`,
+        baseForm, struct, type, originGuess,
+        hanjaInfo ? hanjaInfo.hanja : '',
+        hanjaInfo, grammarInfo ? grammarInfo.explain : '',
+        components
+      );
+    }
+  }
+
+  // 4. Tách trợ từ đơn cuối
+  const stripped2 = clean.replace(/[은는이가을를에도만의씩]$/, '');
+  if (stripped2 !== clean && stripped2.length > 0) {
+    const sfxSingle = clean.slice(stripped2.length);
+    const stemEntry2 = lookupStem(stripped2);
+    const pInfo2 = PARTICLE_DB[sfxSingle] || { vi: `(${sfxSingle})`, role: 'trợ từ' };
+    if (stemEntry2) {
+      const [vi2, type2, origin2, hanja2] = stemEntry2;
+      const hanjaInfo2 = lookupHanja(stripped2, '');
+      return buildItem(
+        w, vi2, stripped2, `${stripped2} + ${sfxSingle}`,
+        type2, normOrigin(origin2), hanja2 || (hanjaInfo2 ? hanjaInfo2.hanja : ''),
+        hanjaInfo2, '',
+        [
+          { ko: stripped2, vi: vi2, role: typeFullLabel(type2) },
+          { ko: sfxSingle, vi: pInfo2.vi, role: `Trợ từ — ${pInfo2.role}` }
+        ]
+      );
+    }
+  }
+
+  // 5. Fallback — vẫn đưa ra nghĩa tốt nhất có thể
+  const fbOrigin = guessOriginKo(clean);
+  const fbType = guessTypeKo(clean);
+  const fbMeaning = guessMeaningKo(clean);
+  const fbHanja = lookupHanja(clean, '');
+  return buildItem(w, fbMeaning, guessRootKo(clean), '', fbType, fbOrigin,
+    fbHanja ? fbHanja.hanja : '', fbHanja, '', []);
+}
+
+function lookupHanja(word, root) {
+  // Tìm trong HANJA_DB theo chính xác hoặc theo stem
+  for (const key of [word, root, ...Object.keys(HANJA_DB)]) {
+    if (word.includes(key) && HANJA_DB[key]) return HANJA_DB[key];
+    if (root && root.includes(key) && HANJA_DB[key]) return HANJA_DB[key];
+  }
+  return null;
+}
+
+function buildItem(word, vi, root, struct, type, origin, hanja, hanjaInfo, explain, components) {
+  return {
+    word, meaning_vi: vi || `(${word})`, root, structure: struct,
+    word_type: type, origin_type: origin,
+    hanja: hanja || (hanjaInfo ? hanjaInfo.hanja : ''),
+    han_viet: hanjaInfo ? hanjaInfo.han_viet : '',
+    han_viet_meaning: hanjaInfo ? hanjaInfo.meaning : '',
+    pure_vietnamese: vi || '',
+    usage_note: explain || '',
+    components: components || [],
+  };
+}
+
+function typeFullLabel(type) {
+  const map = {
+    '동사': 'Động từ',
+    '형용사': 'Tính từ',
+    '명사': 'Danh từ',
+    '부사': 'Trạng từ',
+    '조사': 'Trợ từ',
+    '어미': 'Đuôi ngữ pháp',
+    '대명사': 'Đại từ',
+    '감탄사': 'Thán từ',
+    '수사': 'Số từ',
+    '의존명사': 'Danh từ phụ thuộc',
+    '서술격조사': 'Vị ngữ tố',
+  };
+  for (const [k, v] of Object.entries(map)) { if ((type||'').includes(k)) return v; }
+  return type || 'Từ vựng';
+}
+
+// ── Nhãn loại từ với icon ────────────────────────────────────
 function typeLabel(type) {
   const map = {
-    '동사':'🔴 Động từ (동사)', '형용사':'🟣 Tính từ (형용사)',
-    '명사':'🟠 Danh từ (명사)', '부사':'🟡 Trạng từ (부사)',
-    '조사':'⚫ Trợ từ (조사)', '어미':'🔵 Đuôi ngữ pháp (어미)',
-    '대명사':'🟢 Đại từ (대명사)', '감탄사':'🩷 Thán từ (감탄사)',
-    '수사':'🔢 Số từ (수사)', '의존명사':'🟤 Danh từ phụ thuộc',
-    '서술격조사':'🔵 Vị ngữ tố', '접속사':'🩵 Liên từ',
-    'ngoại lai':'⚪ Ngoại lai (외래어)', '수관형사':'🔢 Số định từ',
-    '관형사':'🟦 Định từ (관형사)',
+    '동사':       '🔴 Động từ (동사)',
+    '형용사':     '🟣 Tính từ (형용사)',
+    '명사':       '🟠 Danh từ (명사)',
+    '부사':       '🟡 Trạng từ (부사)',
+    '조사':       '⚫ Trợ từ (조사)',
+    '어미':       '🔵 Đuôi ngữ pháp (어미)',
+    '대명사':     '🟢 Đại từ (대명사)',
+    '감탄사':     '🩷 Thán từ (감탄사)',
+    '수사':       '🔢 Số từ (수사)',
+    '의존명사':   '🟤 Danh từ phụ thuộc',
+    '서술격조사': '🔵 Vị ngữ tố',
+    '접속사':     '🩵 Liên từ',
+    'ngoại lai':  '⚪ Ngoại lai (외래어)',
+    '수관형사':   '🔢 Số định từ',
+    '관형사':     '🟦 Định từ (관형사)',
   };
-  for (const [k, v] of Object.entries(map)) { if (type.includes(k)) return v; }
-  return '◻️ ' + type;
+  for (const [k, v] of Object.entries(map)) { if ((type||'').includes(k)) return v; }
+  return '◻️ ' + (type || 'từ vựng');
 }
 
 function originLabel(origin, hanja) {
   if (origin === 'thuần hàn') return { cls:'tag-native', label:'🟡 Thuần Hàn (고유어)' };
   if (origin === 'hán hàn')   return { cls:'tag-sino',   label:`🔵 Hán Hàn (한자어)${hanja ? ' — ' + hanja : ''}` };
-  return { cls:'tag-unknown', label:'⚪ Ngoại lai / Khác (외래어)' };
+  if (origin === 'ngoại lai') return { cls:'tag-unknown', label:'⚪ Ngoại lai (외래어)' };
+  return { cls:'tag-unknown', label:'◻️ ' + origin };
 }
 
-// ── 7. Render & buildAnalysis ─────────────────────────────────
+// ── RENDER MẶT SAU — đầy đủ theo format yêu cầu ─────────────
 async function renderAnalysis(root, s) {
   root.innerHTML = '';
-  const analysis = s.analysis || buildAnalysisOffline(s.korean);
-  analysis.forEach(item => {
-    const { cls, label } = originLabel(item.origin, item.hanja);
-    const morphHtml = item.morphemes && item.morphemes.length > 1
-      ? `<div class="morpheme-row">${item.morphemes.map(m => `<span class="morpheme-chip"><span class="morpheme-ko">${m.p}</span><span class="morpheme-gloss">${m.g}</span></span>`).join('<span class="morpheme-plus">+</span>')}</div>` : '';
+  const items = s.analysis || buildAnalysisOffline(s.korean);
+
+  items.forEach((item, idx) => {
+    const { cls, label } = originLabel(item.origin_type || item.origin, item.hanja);
+
+    // ── Khối cấu tạo hình vị ──
+    let structHtml = '';
+    if (item.structure) {
+      structHtml = `<div class="word-struct">🔧 Cấu tạo: <code>${item.structure}</code></div>`;
+    }
+
+    // ── Phân tích từng thành phần ──
+    let componentsHtml = '';
+    if (item.components && item.components.length > 1) {
+      componentsHtml = `<div class="morpheme-row">` +
+        item.components.map(c =>
+          `<span class="morpheme-chip">
+            <span class="morpheme-ko">${c.ko}</span>
+            <span class="morpheme-gloss">${c.vi}</span>
+            ${c.role ? `<span class="morpheme-role">${c.role}</span>` : ''}
+          </span>`
+        ).join('<span class="morpheme-plus">+</span>') +
+        `</div>`;
+    }
+
+    // ── Hán Hàn 2 lớp ──
+    let hanjaHtml = '';
+    if ((item.origin_type === 'hán hàn' || item.origin === 'hán hàn') && (item.hanja || item.han_viet)) {
+      hanjaHtml = `<div class="hanja-block">
+        ${item.hanja ? `<div class="hanja-row"><span class="hanja-label">Hán tự</span><span class="hanja-val">${item.hanja}</span></div>` : ''}
+        ${item.han_viet ? `<div class="hanja-row"><span class="hanja-label">Âm Hán Việt</span><span class="hanja-val hv-sound">${item.han_viet}</span></div>` : ''}
+        ${item.han_viet_meaning ? `<div class="hanja-row"><span class="hanja-label">Nghĩa HV</span><span class="hanja-val hv-meaning">${item.han_viet_meaning}</span></div>` : ''}
+      </div>`;
+    }
+
+    // ── Ghi chú ngữ pháp / gốc từ ──
+    let noteHtml = '';
+    if (item.usage_note) {
+      noteHtml = `<p class="word-note">💡 ${item.usage_note}</p>`;
+    }
 
     const row = document.createElement('article');
     row.className = 'word-item';
@@ -1034,17 +1487,20 @@ async function renderAnalysis(root, s) {
       <div class="word-head">
         <div class="word-head-left">
           <strong class="word-ko">${item.word}</strong>
-          ${item.root && item.root !== item.word ? `<span class="word-root">← gốc: ${item.root}</span>` : ''}
+          ${item.root && item.root !== item.word
+            ? `<span class="word-root">← gốc: ${item.root}</span>` : ''}
         </div>
-        <button class="AudioButton" title="Nghe">🔊</button>
+        <button class="AudioButton" title="Nghe phát âm">🔊</button>
       </div>
-      ${morphHtml}
+      ${structHtml}
+      ${componentsHtml}
       <p class="word-meaning">📖 ${item.meaning_vi}</p>
       <div class="word-tags">
-        <span class="type-tag">${typeLabel(item.type)}</span>
+        <span class="type-tag">${typeLabel(item.word_type || item.type)}</span>
         <span class="origin-tag ${cls}">${label}</span>
       </div>
-      ${item.note ? `<p class="word-note">💡 ${item.note}</p>` : ''}
+      ${hanjaHtml}
+      ${noteHtml}
     `;
     row.querySelector('.AudioButton').addEventListener('click', () => speak(item.word, 0.8));
     root.append(row);
@@ -1052,7 +1508,7 @@ async function renderAnalysis(root, s) {
 }
 
 function buildAnalysisOffline(sentence) {
-  return sentence.trim().split(/\s+/).filter(Boolean).map(w => analyzeWord(w));
+  return sentence.trim().split(/\s+/).filter(Boolean).map(w => analyzeWordFull(w));
 }
 
 async function buildAnalysisAuto(sentence) {

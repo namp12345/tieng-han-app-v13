@@ -700,6 +700,70 @@ body {
   font-weight: 600;
 }
 
+/* ── Cấu tạo hình vị ── */
+.word-struct {
+  margin: 6px 0 0;
+  font-size: .8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  background: rgba(255,255,255,.04);
+  border-radius: 7px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255,255,255,.07);
+}
+
+.word-struct code {
+  font-family: 'Noto Sans KR', monospace;
+  color: var(--sky);
+  font-size: .82rem;
+}
+
+/* ── Khối Hán Hàn 2 lớp ── */
+.hanja-block {
+  margin-top: 8px;
+  border: 1px solid rgba(79,195,247,.2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.hanja-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(79,195,247,.1);
+}
+
+.hanja-row:last-child { border-bottom: none; }
+
+.hanja-label {
+  font-size: .68rem;
+  font-weight: 800;
+  color: var(--sky);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+  min-width: 90px;
+  flex-shrink: 0;
+}
+
+.hanja-val {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.hv-sound {
+  color: #93c5fd;
+  font-style: italic;
+}
+
+.hv-meaning {
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+
 /* Morpheme breakdown */
 .morpheme-row {
   display: flex;
@@ -737,6 +801,19 @@ body {
   font-weight: 700;
   color: var(--text-muted);
   letter-spacing: .03em;
+}
+
+.morpheme-role {
+  font-size: .58rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: .02em;
+  font-style: italic;
+  max-width: 90px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .morpheme-plus {
