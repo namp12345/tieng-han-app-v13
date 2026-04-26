@@ -183,6 +183,7 @@ function render() {
   if (state.view === 'review') return renderReview();
   if (state.view === 'stats') return renderStats();
   if (state.view === 'settings') return renderSettings();
+  if (state.view === 'mytab') return renderMyTab();
   return renderLearn();
 }
 
@@ -1847,6 +1848,290 @@ async function bindRecording(node, sentence, statusNode) {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MODULE: CỤM TỪ CỦA TÔI — Tự thêm, lưu localStorage, học như flashcard cũ
+// ════════════════════════════════════════════════════════════════
+
+const MY_PHRASES_KEY = 'ktour-my-phrases-v1';
+
+function loadMyPhrases() {
+  try { return JSON.parse(localStorage.getItem(MY_PHRASES_KEY) || '[]'); } catch { return []; }
+}
+
+function saveMyPhrases(list) {
+  localStorage.setItem(MY_PHRASES_KEY, JSON.stringify(list));
+}
+
+function myPhraseToSentence(p) {
+  // Chuyển custom phrase thành cùng format với SENTENCES để tái dùng FlashcardSentence
+  return {
+    id: p.id,
+    topic: p.topic || 'Cụm từ của tôi',
+    topicId: 'my',
+    korean: p.korean,
+    romanization: p.roman || '',
+    vietnamese: p.vietnamese,
+    image: getSemanticEmoji(p.vietnamese) || '✍️',
+    analysis: p.analysis || null,
+    naturalMeaning: p.vietnamese,
+    usage: p.note || '',
+    similarPatterns: [p.korean],
+    sessionIndex: 0,
+    sessionTime: '—',
+    _isCustom: true,
+  };
+}
+
+// ── STATE cho edit ──
+let myEditId = null;   // null = đang thêm mới, string = đang sửa
+
+function renderMyTab() {
+  refs.viewRoot.innerHTML = '';
+
+  const myPhrases = loadMyPhrases();
+
+  // ── Khu vực form nhập ──
+  const formPanel = document.createElement('article');
+  formPanel.className = 'simple-panel';
+  formPanel.innerHTML = `
+    <h3 class="panel-title">✍️ Cụm từ của tôi</h3>
+    <p class="panel-subtitle">Tự thêm cụm từ/câu tiếng Hàn, lưu vĩnh viễn trên máy.</p>
+
+    <div class="my-form" id="myForm">
+      <input class="my-input" id="myKorean"    placeholder="Câu / cụm từ tiếng Hàn *" autocomplete="off" autocorrect="off" spellcheck="false">
+      <input class="my-input" id="myVietnamese" placeholder="Nghĩa tiếng Việt *">
+      <input class="my-input" id="myRoman"      placeholder="Phiên âm (tùy chọn)" autocorrect="off" spellcheck="false">
+      <input class="my-input" id="myTopic"      placeholder="Chủ đề (ví dụ: Sân bay, Ăn uống...)">
+      <textarea class="my-input my-textarea" id="myNote" placeholder="Ghi chú ngữ cảnh, ví dụ sử dụng (tùy chọn)" rows="2"></textarea>
+
+      <div class="my-form-actions">
+        <button class="my-btn my-btn-save" id="mySaveBtn">💾 Lưu cụm từ</button>
+        <button class="my-btn my-btn-cancel hidden" id="myCancelBtn">✕ Hủy sửa</button>
+      </div>
+
+      <details class="my-bulk-wrap">
+        <summary class="my-bulk-toggle">📋 Nhập nhanh nhiều cụm từ cùng lúc</summary>
+        <p class="my-bulk-hint">Mỗi dòng một cụm từ theo định dạng:<br>
+          <code>tiếng hàn | nghĩa việt | phiên âm (tùy chọn) | ghi chú (tùy chọn)</code></p>
+        <textarea class="my-input my-textarea" id="myBulkInput" rows="5"
+          placeholder="안녕하세요 | Xin chào | an-nyeong-ha-se-yo | Chào hỏi lịch sự&#10;감사합니다 | Cảm ơn | gam-sa-ham-ni-da&#10;죄송합니다 | Xin lỗi | jwe-song-ham-ni-da | Khi có lỗi với khách"></textarea>
+        <button class="my-btn my-btn-bulk" id="myBulkBtn">⚡ Thêm tất cả</button>
+      </details>
+    </div>
+  `;
+  refs.viewRoot.append(formPanel);
+
+  // ── Khu vực danh sách ──
+  const listPanel = document.createElement('article');
+  listPanel.className = 'simple-panel';
+  listPanel.id = 'myListPanel';
+  listPanel.innerHTML = `
+    <div class="my-list-head">
+      <h3 class="panel-title">Danh sách (${myPhrases.length})</h3>
+      <button class="my-btn my-btn-study" id="myStudyAllBtn" ${myPhrases.length ? '' : 'disabled'}>📖 Học tất cả</button>
+    </div>
+    <div id="myPhraseList"></div>
+    ${myPhrases.length === 0 ? '<p class="empty">Chưa có cụm từ nào. Thêm cụm từ đầu tiên ở trên!</p>' : ''}
+  `;
+  refs.viewRoot.append(listPanel);
+
+  // ── Khu vực học (flashcard) — ẩn ban đầu ──
+  const studyPanel = document.createElement('section');
+  studyPanel.id = 'myStudySection';
+  studyPanel.className = 'hidden';
+  refs.viewRoot.append(studyPanel);
+
+  // Render danh sách
+  renderMyList(myPhrases);
+
+  // ── Bind form save ──
+  document.getElementById('mySaveBtn').addEventListener('click', () => {
+    const ko = document.getElementById('myKorean').value.trim();
+    const vi = document.getElementById('myVietnamese').value.trim();
+    if (!ko || !vi) { alert('Vui lòng nhập ít nhất tiếng Hàn và nghĩa tiếng Việt.'); return; }
+
+    const list = loadMyPhrases();
+    if (myEditId) {
+      // Đang sửa
+      const idx = list.findIndex(p => p.id === myEditId);
+      if (idx >= 0) {
+        list[idx] = {
+          ...list[idx],
+          korean: ko,
+          vietnamese: vi,
+          roman: document.getElementById('myRoman').value.trim(),
+          topic: document.getElementById('myTopic').value.trim(),
+          note: document.getElementById('myNote').value.trim(),
+          updatedAt: Date.now(),
+        };
+      }
+      myEditId = null;
+    } else {
+      // Thêm mới
+      list.push({
+        id: 'my-' + Date.now() + '-' + Math.random().toString(36).slice(2,6),
+        korean: ko,
+        vietnamese: vi,
+        roman: document.getElementById('myRoman').value.trim(),
+        topic: document.getElementById('myTopic').value.trim(),
+        note: document.getElementById('myNote').value.trim(),
+        createdAt: Date.now(),
+      });
+    }
+    saveMyPhrases(list);
+    clearMyForm();
+    renderMyTab(); // Re-render toàn bộ tab
+  });
+
+  // ── Hủy sửa ──
+  document.getElementById('myCancelBtn').addEventListener('click', () => {
+    myEditId = null;
+    clearMyForm();
+    document.getElementById('myCancelBtn').classList.add('hidden');
+    document.getElementById('mySaveBtn').textContent = '💾 Lưu cụm từ';
+  });
+
+  // ── Nhập nhanh bulk ──
+  document.getElementById('myBulkBtn').addEventListener('click', () => {
+    const raw = document.getElementById('myBulkInput').value.trim();
+    if (!raw) return;
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    const list = loadMyPhrases();
+    let added = 0;
+    lines.forEach(line => {
+      const parts = line.split('|').map(x => x.trim());
+      const ko = parts[0]; const vi = parts[1];
+      if (!ko || !vi) return;
+      list.push({
+        id: 'my-' + Date.now() + '-' + Math.random().toString(36).slice(2,6) + added,
+        korean: ko, vietnamese: vi,
+        roman: parts[2] || '',
+        topic: '',
+        note: parts[3] || '',
+        createdAt: Date.now(),
+      });
+      added++;
+    });
+    saveMyPhrases(list);
+    document.getElementById('myBulkInput').value = '';
+    renderMyTab();
+    if (added) alert(`✅ Đã thêm ${added} cụm từ!`);
+  });
+
+  // ── Học tất cả ──
+  document.getElementById('myStudyAllBtn')?.addEventListener('click', () => {
+    const list = loadMyPhrases();
+    if (!list.length) return;
+    startMyStudy(list.map(myPhraseToSentence));
+  });
+}
+
+function renderMyList(myPhrases) {
+  const container = document.getElementById('myPhraseList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  myPhrases.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'my-list-item';
+    item.innerHTML = `
+      <div class="my-item-main">
+        <div class="my-item-ko">${p.korean}</div>
+        <div class="my-item-vi">${p.vietnamese}</div>
+        ${p.roman ? `<div class="my-item-roman">${p.roman}</div>` : ''}
+        ${p.topic ? `<span class="my-item-tag">${p.topic}</span>` : ''}
+      </div>
+      <div class="my-item-actions">
+        <button class="my-action-btn" data-id="${p.id}" data-action="speak" title="Phát âm">🔊</button>
+        <button class="my-action-btn" data-id="${p.id}" data-action="study" title="Học thẻ này">📖</button>
+        <button class="my-action-btn" data-id="${p.id}" data-action="edit" title="Sửa">✏️</button>
+        <button class="my-action-btn my-action-del" data-id="${p.id}" data-action="delete" title="Xóa">🗑️</button>
+      </div>
+    `;
+    container.append(item);
+  });
+
+  // Bind actions
+  container.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      const list = loadMyPhrases();
+      const phrase = list.find(p => p.id === id);
+      if (!phrase) return;
+
+      if (action === 'speak') {
+        speak(phrase.korean);
+      } else if (action === 'study') {
+        startMyStudy([myPhraseToSentence(phrase)]);
+      } else if (action === 'edit') {
+        myEditId = id;
+        document.getElementById('myKorean').value = phrase.korean;
+        document.getElementById('myVietnamese').value = phrase.vietnamese;
+        document.getElementById('myRoman').value = phrase.roman || '';
+        document.getElementById('myTopic').value = phrase.topic || '';
+        document.getElementById('myNote').value = phrase.note || '';
+        document.getElementById('mySaveBtn').textContent = '💾 Cập nhật';
+        document.getElementById('myCancelBtn').classList.remove('hidden');
+        // Scroll lên form
+        document.getElementById('myForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (action === 'delete') {
+        if (!confirm(`Xóa cụm từ "${phrase.korean}"?`)) return;
+        const newList = list.filter(p => p.id !== id);
+        saveMyPhrases(newList);
+        renderMyTab();
+      }
+    });
+  });
+}
+
+function clearMyForm() {
+  ['myKorean','myVietnamese','myRoman','myTopic','myNote'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+}
+
+// ── Học flashcard từ danh sách custom ──
+function startMyStudy(sentences) {
+  if (!sentences.length) return;
+
+  // Ẩn form/list, hiện khu vực học
+  document.querySelector('.simple-panel')?.classList.add('hidden');
+  document.getElementById('myListPanel')?.classList.add('hidden');
+  const studySection = document.getElementById('myStudySection');
+  studySection.classList.remove('hidden');
+  studySection.innerHTML = '';
+
+  // Header với nút thoát
+  const header = document.createElement('div');
+  header.className = 'my-study-header';
+  header.innerHTML = `
+    <span class="my-study-count">📖 ${sentences.length} cụm từ</span>
+    <button class="my-btn my-btn-cancel" id="myExitStudy">✕ Thoát học</button>
+  `;
+  studySection.append(header);
+  document.getElementById('myExitStudy').addEventListener('click', renderMyTab);
+
+  // Ensure progress cho từng custom phrase
+  sentences.forEach(s => {
+    if (!state.progressById[s.id]) {
+      state.progressById[s.id] = {
+        id: s.id, isCompleted: false, completedAt: null,
+        reviewBucket: false, listenCount: 0, slowListenCount: 0,
+        recordCount: 0, selfPlayCount: 0, unlocked: true,
+      };
+    }
+  });
+
+  // Tái dùng FlashcardSentence hiện có
+  sentences.forEach(s => {
+    const card = FlashcardSentence(s);
+    studySection.append(card);
+  });
 }
 
 window.addEventListener('DOMContentLoaded', init);
