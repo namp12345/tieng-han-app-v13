@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tieng-han-hdv-v6.1.0';
+const CACHE_NAME = 'tieng-han-hdv-v7.0.0';
 const OFFLINE_ASSETS = [
   './',
   './index.html',
@@ -29,6 +29,25 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
+  // Network-first cho app.js và styles.css để luôn nhận code mới nhất
+  const url = new URL(event.request.url);
+  const isCore = url.pathname.endsWith('app.js') || url.pathname.endsWith('styles.css') || url.pathname.endsWith('index.html');
+
+  if (isCore) {
+    event.respondWith(
+      fetch(event.request)
+        .then(networkResponse => {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first cho icon, phrases, manifest
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;

@@ -1738,13 +1738,54 @@ function updateTopProgress() {
   refs.statsText.textContent = `Review bucket: ${all.filter(x=>x.reviewBucket).length} · Chưa hoàn thành: ${all.length - completed}`;
 }
 
-function speak(text, rate = 1) {
+// ── Phát âm tiếng Hàn — Android-safe ───────────────────────
+let _koVoice = null;
+
+function _loadKoreanVoice() {
   if (!('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ko-KR';
-  u.rate = rate;
-  speechSynthesis.cancel();
-  speechSynthesis.speak(u);
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return;
+  _koVoice = voices.find(v => v.lang === 'ko-KR')
+          || voices.find(v => v.lang.startsWith('ko'))
+          || null;
+}
+
+if ('speechSynthesis' in window) {
+  _loadKoreanVoice();
+  window.speechSynthesis.onvoiceschanged = _loadKoreanVoice;
+}
+
+function speak(text, rate) {
+  speakKorean(text, rate);
+}
+
+function speakKorean(text, rate) {
+  if (!text || typeof text !== 'string' || !text.trim()) return;
+  if (!('speechSynthesis' in window)) return;
+
+  // Android: cancel trước, sau đó tạo utterance trong setTimeout(0)
+  window.speechSynthesis.cancel();
+
+  const _rate = (typeof rate === 'number' && rate > 0) ? rate : 0.9;
+
+  setTimeout(() => {
+    const u = new SpeechSynthesisUtterance(text.trim());
+    u.lang = 'ko-KR';
+    u.rate = _rate;
+    u.pitch = 1;
+    u.volume = 1;
+
+    // Thử lấy voice Hàn nếu có
+    if (_koVoice) {
+      u.voice = _koVoice;
+    } else {
+      // Thử load lại lần nữa (trường hợp Android chưa sẵn sàng)
+      _loadKoreanVoice();
+      if (_koVoice) u.voice = _koVoice;
+    }
+
+    window.speechSynthesis.speak(u);
+  }, 50);
 }
 
 function openRecordingDB() {
