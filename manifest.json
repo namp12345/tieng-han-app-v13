@@ -1,15 +1,42 @@
 {
-  "name": "K-Tour Guide v6",
-  "short_name": "K-Guide v6",
-  "description": "Ứng dụng học cụm từ tiếng Hàn thực chiến cho hướng dẫn viên du lịch Đà Nẵng - Hội An - Bà Nà - Linh Ứng.",
+  "id": "io.github.namp12345.tieng-han-app-v13",
+  "name": "K-Tour Guide — Tiếng Hàn HDV",
+  "short_name": "K-Guide HDV",
+  "description": "Học tiếng Hàn thực chiến cho hướng dẫn viên du lịch Đà Nẵng - Hội An - Bà Nà - Linh Ứng. Phân tích từ vựng sâu, flashcard lật thẻ, loa phát âm chuẩn.",
+  "categories": ["education", "productivity"],
+  "lang": "vi",
+  "dir": "ltr",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Màn hình học flashcard tiếng Hàn"
+    }
   ],
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
-  "background_color": "#f5f7fb",
-  "theme_color": "#2563eb"
+  "background_color": "#0f1623",
+  "theme_color": "#ff6b6b",
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "shortcuts": [
+    {
+      "name": "Học ngay",
+      "short_name": "Học",
+      "description": "Mở màn hình học flashcard",
+      "url": "./index.html",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }
