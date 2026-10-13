@@ -119,7 +119,7 @@ jobs:
             for i in range(len(shots)):f.write("file '"+str((seg/f"s{i:02}.mp4").resolve())+"'\n")
            video=out/f"DA_NANG_HOI_AN_V3_{format_name}.mp4"
            # Try the energetic (full production) music cue, then polish stereo loudness and limit peaks.
-           cmd=["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-f","concat","-safe","0","-i",str(concat),"-ss","10","-i",str(track),"-filter_complex",f"[1:a]atrim=duration={LENGTH:.3f},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=.55,afade=t=out:st={LENGTH-1.7:.3f}:d=1.7,loudnorm=I=-15:TP=-1.6:LRA=9,alimiter=limit=.90[a]","-map","0:v:0","-map","[a]","-c:v","copy","-c:a","aac","-b:a","192k","-movflags","+faststart","-t",str(LENGTH),str(video)]
+           cmd=["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-f","concat","-safe","0","-i",str(concat),"-ss","10","-i",str(track),"-filter_complex",f"[1:a]atrim=duration={LENGTH:.3f},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.55,afade=t=out:st={LENGTH-1.7:.3f}:d=1.7,loudnorm=I=-15:TP=-1.6:LRA=9,alimiter=limit=.90[a]","-map","0:v:0","-map","[a]","-c:v","copy","-c:a","aac","-b:a","192k","-movflags","+faststart","-t",str(LENGTH),str(video)]
            sh(cmd,timeout=240)
            print("VIDEO_READY",video,video.stat().st_size,flush=True)
            if video.stat().st_size<3_000_000:raise RuntimeError("Suspiciously small final")
