@@ -147,6 +147,7 @@ jobs:
           print("FINISHED",str(out/"danang_hoi_an_real.mp4"),(out/"danang_hoi_an_real.mp4").stat().st_size,flush=True)
           
           PY
+          sed -i 's/^          //' /tmp/danang_render.py
           python /tmp/danang_render.py
       - name: Upload finished MP4
         uses: actions/upload-artifact@v4
