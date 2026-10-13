@@ -1,0 +1,67 @@
+name: V4 licensed footage visual selection
+on:
+  push:
+    branches: [cinematic-reel-v4-20261013]
+permissions:
+  contents: read
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 23
+    steps:
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          pip install --quiet requests Pillow
+      - name: Check permissioned stock video sources
+        run: |
+          cat > /tmp/v4_source.py <<'PY'
+          import requests,concurrent.futures,json,subprocess,os,math
+          from PIL import Image,ImageDraw,ImageFont
+          from pathlib import Path
+          ITEMS={"4030306":"Hoi An aerial","4388336":"Da Nang coastline drone","5035564":"Hoi An local fisherman","8664221":"Da Nang fishing beach morning","9791713":"Da Nang Dragon Bridge drone","12690267":"Hoi An old riverside twilight","12742203":"Da Nang traditional coracles","12742204":"Hoi An evening boat festival","12990363":"Hoi An river lantern twilight","13940556":"Hoi An lantern river","15785122":"Hoi An hyperlapse","15809397":"Hoi An cyclos sunlight street","19135704":"Golden Bridge Ba Na Hills","28505876":"Da Nang waves dusk","29031265":"Hoi An fields drone","29226362":"Hoi An rooftops dusk aerial","30320695":"Vietnam street food soup","30320696":"Vietnam noodles street food","30790585":"Vietnam local banh mi vendor","31137115":"Hoi An local culture street","31599059":"Da Nang sunshine families","34938309":"Da Nang beach sunset","35152714":"Vietnam streetfood fire","35503523":"Da Nang beach sculpture drone","36339396":"Vietnam crispy food grilling"}
+          options=[(q,r,f) for q in ('hd','sd','uhd') for r in ('1920_1080','1080_1920','1280_720','720_1280','3840_2160') for f in (24,25,30,29,60,50)]
+          def check(task):
+           i,q,r,f=task
+           url=f"https://videos.pexels.com/video-files/{i}/{i}-{q}_{r}_{f}fps.mp4"
+           try:
+            h=requests.head(url,timeout=7,allow_redirects=True,headers={'User-Agent':'Mozilla/5.0'})
+            if h.status_code==200 and 'video' in h.headers.get('content-type',''):return (str(i),url,int(h.headers.get('content-length','0')))
+           except:pass
+           return None
+          with concurrent.futures.ThreadPoolExecutor(max_workers=50) as p:valid=[r for r in p.map(check,[(int(i),*v) for i in ITEMS for v in options]) if r]
+          sources={}
+          for i,label in ITEMS.items():
+           paths=[r for r in valid if r[0]==i]
+           paths.sort(key=lambda x: (0 if '1920_1080' in x[1] else 1 if '1080_1920' in x[1] else 2,x[2]))
+           if paths:sources[i]={'name':label,'url':paths[0][1],'bytes':paths[0][2]};print('FOUND',i,label,paths[0][1],flush=True)
+           else:print('NOT_FOUND',i,label,flush=True)
+          dest=Path('v4_sources');dest.mkdir(exist_ok=True)
+          (dest/'sources.json').write_text(json.dumps(sources,indent=2),encoding='utf8')
+          thumbs=[]
+          for i,v in sources.items():
+           for t in (1,3):
+            pic=dest/f'{i}_{t}.jpg'
+            try:
+             subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-i',v['url'],'-ss',str(t),'-frames:v','1','-vf','scale=360:-1',str(pic)],check=True,timeout=35)
+             image=Image.open(pic).convert('RGB');image.thumbnail((360,220));thumbs.append((i,v['name'],t,image))
+            except Exception as e:print('PREVIEW_ERROR',i,str(e)[:150],flush=True)
+          W=370;H=270;n=4
+          can=Image.new('RGB',(W*n,H*math.ceil(len(thumbs)/n)),'#eee')
+          draw=ImageDraw.Draw(can)
+          font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',15)
+          for idx,(i,name,t,img) in enumerate(thumbs):
+           x=(idx%n)*W;y=(idx//n)*H
+           can.paste(img,(x,y+30));draw.text((x+3,y+3),i+' '+name[:24],font=font,fill='#111');draw.text((x+3,y+244),'sec '+str(t),font=font,fill='#111')
+          can.save(dest/'CONTACT.jpg',quality=88)
+          print('DONE',len(thumbs),flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/v4_source.py
+          python /tmp/v4_source.py
+      - name: Save video source quality audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: v4-stock-source-audit
+          path: v4_sources/
