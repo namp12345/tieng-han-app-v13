@@ -1,0 +1,182 @@
+name: Film V3 finished render and QA
+on:
+  push:
+    branches: [cinematic-reel-v3-20261013]
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Install production stack
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -qq -y ffmpeg fonts-dejavu-core
+          pip install -q requests Pillow numpy opencv-python-headless
+      - name: Download licensed footage render and QA
+        run: |
+          cat >/tmp/edit_video.py <<'PY'
+          import os,sys,math,json,subprocess,requests,re
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image,ImageDraw,ImageFont
+          root=Path("work");root.mkdir(exist_ok=True)
+          out=Path("export");out.mkdir(exist_ok=True)
+          src=root/"sources";src.mkdir(exist_ok=True)
+          s=requests.Session();s.headers["User-Agent"]="Mozilla/5.0 (travel film edit educational)"
+          clips={
+          "9791713":"hd_1920_1080_30fps",
+          "8664221":"hd_1920_1080_24fps",
+          "19135704":"hd_1920_1080_25fps",
+          "5035564":"hd_1920_1080_30fps",
+          "12690267":"hd_1920_1080_24fps",
+          "12990363":"hd_1920_1080_24fps",
+          "12742204":"hd_1920_1080_24fps",
+          "12737266":"hd_1920_1080_24fps",
+          "13933942":"hd_1920_1080_24fps",
+          "15785122":"hd_1920_1080_24fps",
+          "17972072":"hd_1920_1080_30fps"
+          }
+          for vid,desc in clips.items():
+           u=f"https://videos.pexels.com/video-files/{vid}/{vid}-{desc}.mp4"
+           dest=src/f"{vid}.mp4"
+           if dest.exists() and dest.stat().st_size>200000:continue
+           print("VIDEO GET",vid,flush=True)
+           with s.get(u,stream=True,timeout=(22,130)) as r:
+            r.raise_for_status()
+            with dest.open("wb") as f:
+             for b in r.iter_content(2**20):
+              if b:f.write(b)
+           if dest.stat().st_size<100000:raise ValueError("Incomplete licensed footage "+vid)
+          # track licensed by Mixkit, actual recorded instrumental
+          track=root/"Driving_Ambition_by_Ahjay_Stelino.mp3"
+          with s.get("https://assets.mixkit.co/music/32/32.mp3",stream=True,timeout=(22,90)) as r:
+           r.raise_for_status()
+           with track.open("wb") as f:
+            for b in r.iter_content(2**20):
+             if b:f.write(b)
+          print("SOURCE READY",track.stat().st_size,flush=True)
+          # Cinematic rhythm: quick opening shots, midsection breathing, memorable lantern finale.
+          shots=[
+           ("9791713",.4,2.1,"DA NANG","YOUR NEXT STORY STARTS HERE"),
+           ("8664221",1.0,1.7,None,None),
+           ("9791713",6.0,1.8,None,None),
+           ("19135704",.5,2.2,None,None),
+           ("5035564",.8,1.9,"DISCOVER","THE MOMENTS BETWEEN"),
+           ("5035564",4.6,1.4,None,None),
+           ("12690267",.8,2.5,"HOI AN","WHERE TIME SLOWS DOWN"),
+           ("12990363",.6,2.4,None,None),
+           ("12742204",.5,1.8,None,None),
+           ("12737266",1.0,1.8,None,None),
+           ("13933942",.5,1.8,None,None),
+           ("15785122",.5,1.8,None,None),
+           ("12742204",3.0,2.0,None,None),
+           ("12990363",4.0,2.2,None,None),
+           ("12690267",3.7,1.8,None,None),
+           ("12990363",6.0,3.5,"BEYOND THE POSTCARD","PRIVATE TOURS • DA NANG & HOI AN")
+          ]
+          FPS=24
+          LENGTH=sum(x[2] for x in shots)
+          print("EDIT_TOTAL_DURATION",LENGTH,flush=True)
+          fontb="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+          font="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+          def makepng(w,h,idx,title,sub):
+           im=Image.new("RGBA",(w,h),(0,0,0,0));d=ImageDraw.Draw(im)
+           # Understated art direction; typography only in key shots, one coherent font.
+           for y in range(int(h*.64),h,3):
+            a=int(140*(y/h-.64)/.36)
+            d.rectangle((0,y,w,y+3),fill=(3,9,18,a))
+           if title:
+            main=ImageFont.truetype(fontb, max(28,int(w*.051)) if w>h else max(38,int(w*.077)))
+            small=ImageFont.truetype(font,max(16,int(w*.019)) if w>h else max(22,int(w*.036)))
+            def t_center(text,y,f,fill):
+             bb=d.textbbox((0,0),text,font=f);tw=bb[2]-bb[0]
+             d.text(((w-tw)/2,y),text,font=f,fill=fill,stroke_fill=(10,18,30,145),stroke_width=1)
+            t_center(title,int(h*.73),main,(255,254,248,245))
+            t_center(sub,int(h*.83),small,(254,218,168,250))
+            if idx==len(shots)-1:
+             last=ImageFont.truetype(fontb,max(18,int(w*.022)) if w>h else max(24,int(w*.041)))
+             t_center("MESSAGE TO PLAN YOUR PRIVATE TRIP",int(h*.90),last,(255,255,255,255))
+           return im
+          def sh(cmd,timeout=240):
+           print("RUN",cmd[0],cmd[-1],flush=True)
+           subprocess.run(cmd,check=True,timeout=timeout,stdout=subprocess.DEVNULL)
+          def encode(format_name,w,h):
+           seg=root/("seg_"+format_name);seg.mkdir(exist_ok=True)
+           for i,(vid,ss,d,title,sub) in enumerate(shots):
+            # Every scene is moving footage; prevent upscaled photos or black bars.
+            image=root/f"{format_name}_text_{i:02}.png"
+            makepng(w,h,i,title,sub).save(image)
+            fvf=f"fps={FPS},scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{h},eq=contrast=1.06:brightness=0.014:saturation=1.12,unsharp=3:3:0.4,format=yuv420p"
+            # Small title fade in/out without covering the actual video.
+            filtergraph=f"[0:v]{fvf}[base];[1:v]format=rgba,fade=t=in:st=0:d=0.3:alpha=1,fade=t=out:st={max(.1,d-.4)}:d=.35:alpha=1[t];[base][t]overlay=shortest=1:format=auto,format=yuv420p[v]"
+            target=seg/f"s{i:02}.mp4"
+            cmd=["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-ss",str(ss),"-i",str(src/f"{vid}.mp4"),"-loop","1","-i",str(image),"-filter_complex",filtergraph,"-map","[v]","-an","-t",str(d),"-c:v","libx264","-crf","21","-preset","veryfast","-pix_fmt","yuv420p","-r",str(FPS),str(target)]
+            sh(cmd,timeout=360)
+            if target.stat().st_size<15000:raise RuntimeError("Empty scene"+str(i))
+           concat=root/f"list_{format_name}.txt"
+           with concat.open("w") as f:
+            for i in range(len(shots)):f.write("file '"+str((seg/f"s{i:02}.mp4").resolve())+"'\n")
+           video=out/f"DA_NANG_HOI_AN_V3_{format_name}.mp4"
+           # Try the energetic (full production) music cue, then polish stereo loudness and limit peaks.
+           cmd=["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-f","concat","-safe","0","-i",str(concat),"-ss","10","-i",str(track),"-filter_complex",f"[1:a]atrim=duration={LENGTH:.3f},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=.55,afade=t=out:st={LENGTH-1.7:.3f}:d=1.7,loudnorm=I=-15:TP=-1.6:LRA=9,alimiter=limit=.90[a]","-map","0:v:0","-map","[a]","-c:v","copy","-c:a","aac","-b:a","192k","-movflags","+faststart","-t",str(LENGTH),str(video)]
+           sh(cmd,timeout=240)
+           print("VIDEO_READY",video,video.stat().st_size,flush=True)
+           if video.stat().st_size<3_000_000:raise RuntimeError("Suspiciously small final")
+           # Storyboard representative snapshots at shot centers
+           images=[]; t=0
+           for i,(_,ss,d,_,_) in enumerate(shots):
+            thumb=out/f"{format_name}_{i:02}.jpg"
+            sh(["ffmpeg","-loglevel","error","-nostdin","-y","-ss",f"{t+d*.50:.2f}","-i",str(video),"-frames:v","1","-vf","scale=320:-1",str(thumb)],timeout=70)
+            im=Image.open(thumb).convert("RGB");im.thumbnail((320,320))
+            images.append((i,t+d/2,im))
+            t+=d
+           cw=328;ch=320+30;cols=4
+           sheet=Image.new("RGB",(cols*cw,math.ceil(len(images)/cols)*ch),(250,249,247));dw=ImageDraw.Draw(sheet)
+           for q,(i,t,im) in enumerate(images):
+            x=(q%cols)*cw;y=(q//cols)*ch
+            sheet.paste(im,(x+(cw-im.width)//2,y+5))
+            dw.text((x+8,y+ch-23),f"Scene {i+1} • {t:.1f}s",fill=(22,30,45))
+           sheet.save(out/f"STORYBOARD_{format_name}.jpg",quality=90)
+           return video,images
+          video_land,frames=encode("LANDSCAPE_1080p",1920,1080)
+          video_vert,_=encode("VERTICAL_1080p",1080,1920)
+          # Technical QA independent of subjective marketing quality.
+          import cv2
+          quality={}
+          for f in (video_land,video_vert):
+           v=cv2.VideoCapture(str(f))
+           brightness=[];blacks=0;samples=0;sharps=[]
+           for sec in np.arange(.5,LENGTH-.2,.55):
+            v.set(cv2.CAP_PROP_POS_MSEC,float(sec)*1000)
+            ok,frame=v.read()
+            if not ok:continue
+            gray=cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+            avg=float(gray.mean());brightness.append(avg);sharps.append(float(cv2.Laplacian(gray,cv2.CV_64F).var()))
+            if avg<19:blacks+=1
+            samples+=1
+           v.release()
+           meta=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_format","-show_streams","-of","json",str(f)]))
+           aud=[x for x in meta["streams"] if x["codec_type"]=="audio"]
+           quality[f.name]={"duration_s":float(meta["format"]["duration"]),"bytes":f.stat().st_size,"audio_present":bool(aud),"very_dark_frames":blacks,"sampled_frames":samples,"average_luma":round(float(np.mean(brightness)),1) if brightness else 0,"average_detail_metric":round(float(np.mean(sharps))) if sharps else 0}
+           # Technical fail if silent, black (very dark intended lantern scene but not pure black) or wrong length.
+           if not aud or abs(float(meta["format"]["duration"])-LENGTH)>1:raise RuntimeError("Technical QA failed "+f.name)
+           if blacks>max(1,samples*.08): raise RuntimeError("Too many black-looking scenes "+f.name+" "+str(blacks))
+          print("QUALITY_REPORT",json.dumps(quality,indent=2),flush=True)
+          (out/"QUALITY_REPORT.json").write_text(json.dumps(quality,indent=2))
+          sources_txt="# Video licensing and editing notes\n\nReferences for film style (NOT reused): Vietnam Tourism official campaign and Top Travel Vietnam Cinematic Journey 4K.\n\nAll moving footage in the video is sourced from Pexels and subject to the Pexels License (https://www.pexels.com/license/). Original clips were trimmed, reframed, and color graded; backgrounds not represented as endorsement of a tour guide. Source videos:\n"
+          for id in clips:sources_txt+=f"- https://www.pexels.com/video/{id}/\n"
+          sources_txt+="\nSoundtrack: Driving Ambition by Ahjay Stelino, downloaded from Mixkit, https://mixkit.co/free-stock-music/film-score/, licensed under Mixkit Free Music License https://mixkit.co/license/#musicFree. Track edited and loudness normalized.\n\nNo YouTube, TikTok or Douyin video was copied.\n"
+          (out/"LICENSES.txt").write_text(sources_txt)
+          print("DONE_QUALITY_CHECK",flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/edit_video.py
+          python /tmp/edit_video.py
+      - name: Upload exported video for external review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-travel-film-render
+          path: export/
+          retention-days: 7
