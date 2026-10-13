@@ -109,7 +109,7 @@ jobs:
             makepng(w,h,i,title,sub).save(image)
             fvf=f"fps={FPS},scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{h},eq=contrast=1.06:brightness=0.014:saturation=1.12,unsharp=3:3:0.4,format=yuv420p"
             # Small title fade in/out without covering the actual video.
-            filtergraph=f"[0:v]{fvf}[base];[1:v]format=rgba,fade=t=in:st=0:d=0.3:alpha=1,fade=t=out:st={max(.1,d-.4)}:d=.35:alpha=1[t];[base][t]overlay=shortest=1:format=auto,format=yuv420p[v]"
+            filtergraph=f"[0:v]{fvf}[base];[1:v]format=rgba,fade=t=in:st=0:d=0.3:alpha=1,fade=t=out:st={max(.1,d-.4)}:d=0.35:alpha=1[t];[base][t]overlay=shortest=1:format=auto,format=yuv420p[v]"
             target=seg/f"s{i:02}.mp4"
             cmd=["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-ss",str(ss),"-i",str(src/f"{vid}.mp4"),"-loop","1","-i",str(image),"-filter_complex",filtergraph,"-map","[v]","-an","-t",str(d),"-c:v","libx264","-crf","21","-preset","veryfast","-pix_fmt","yuv420p","-r",str(FPS),str(target)]
             sh(cmd,timeout=360)
