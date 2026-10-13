@@ -1,0 +1,72 @@
+name: Mixkit video quality scout
+on:
+  push:
+    branches: [pro-travel-edit-20261013]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -qq -y ffmpeg
+          python -m pip install -q requests Pillow
+      - name: Download small licensed source previews
+        run: |
+          cat > /tmp/mix.py <<'PY'
+          import requests,re,os,json,subprocess
+          from PIL import Image,ImageDraw,ImageFont
+          s=requests.Session();s.headers['User-Agent']='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36'
+          r=s.get('https://mixkit.co/free-stock-video/vietnam/',timeout=25);r.raise_for_status()
+          html=r.text
+          ids=list(dict.fromkeys(re.findall(r'https://assets\.mixkit\.co/videos/(\d+)/\1-360\.mp4',html)))
+          print('VIDEO COUNT',len(ids),'IDS',ids,flush=True)
+          obj=[]
+          for chunk in re.findall(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>',html,re.S):
+           try: obj.append(json.loads(chunk))
+           except: pass
+          def walk(node):
+           if isinstance(node,dict):
+            if node.get('@type') in ('VideoObject','MediaObject'):print('VIDEOS_META',json.dumps(node,ensure_ascii=False)[:500],flush=True)
+            for v in node.values():walk(v)
+           elif isinstance(node,list):
+            for a in node:walk(a)
+          walk(obj)
+          os.makedirs('mixkit',exist_ok=True)
+          thumbs=[]
+          for idx,vid in enumerate(ids):
+           try:
+            window=html[max(html.find('/'+vid+'/'),0)-1000:html.find('/'+vid+'/')+400]
+            name=(re.search(r'alt="([^"]+)"',window) or re.search(r'title="([^"]+)"',window))
+            if name:print('VIDEO ID',vid,'name',name.group(1),flush=True)
+            u=f'https://assets.mixkit.co/videos/{vid}/{vid}-360.mp4'
+            fname=f'mixkit/{vid}.mp4'
+            with s.get(u,stream=True,timeout=50) as q:
+             print('FETCH',vid,q.status_code,q.headers.get('content-length'),flush=True)
+             q.raise_for_status()
+             with open(fname,'wb') as f:
+              for b in q.iter_content(256*1024): f.write(b)
+            frame=f'mixkit/{vid}.jpg'
+            subprocess.run(['ffmpeg','-v','error','-y','-ss','1','-i',fname,'-vf','scale=250:-1','-frames:v','1',frame],check=True)
+            im=Image.open(frame).convert('RGB'); im.thumbnail((250,170))
+            thumbs.append((vid,im))
+           except Exception as e:print('WARN',vid,str(e)[:180],flush=True)
+          w=250*5;h=210*((len(thumbs)+4)//5)
+          sheet=Image.new('RGB',(w,h),'white');d=ImageDraw.Draw(sheet)
+          for j,(vid,im) in enumerate(thumbs):
+           x=(j%5)*250;y=(j//5)*210
+           sheet.paste(im,(x,y+26));d.text((x+5,y+5),vid,fill='black')
+          sheet.save('mixkit/contact.jpg')
+          open('mixkit/ids.json','w').write(json.dumps(ids))
+          
+          PY
+          sed -i 's/^          //' /tmp/mix.py
+          python /tmp/mix.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mixkit-vietnam-editorial-contact
+          path: |
+            mixkit/contact.jpg
+            mixkit/ids.json
