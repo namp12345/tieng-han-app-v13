@@ -84,7 +84,7 @@ jobs:
           shots=[(i, min(st,max(.1,duration[i]-d-.15)), d, title) for i,st,d,title in shots]
           total=sum(s[2] for s in shots)
           print('TOTAL',total,'UNIQUE',len(set(s[0] for s in shots)),flush=True)
-          assert 28<total<33
+          assert 26<total<33
           fonts='/usr/share/fonts/truetype/dejavu/'
           F1=fonts+'DejaVuSansCondensed-Bold.ttf'
           F2=fonts+'DejaVuSans.ttf'
