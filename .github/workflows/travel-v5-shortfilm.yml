@@ -1,0 +1,135 @@
+name: Cinematic short reel V5
+on:
+  push:
+    branches: [cinematic-reel-v3-20261013]
+permissions:
+  contents: read
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Install FFmpeg and fonts
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-lato
+          pip install -q requests Pillow numpy
+      - name: Assemble precision short-form travel film
+        run: |
+          cat >/tmp/film_v5.py <<'PY'
+          import os,json,math,subprocess,requests
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageFont
+          import numpy as np
+          R=Path("v5_assets");R.mkdir(exist_ok=True)
+          S=R/"sources";S.mkdir(exist_ok=True)
+          C=R/"cuts";C.mkdir(exist_ok=True)
+          O=Path("v5_export");O.mkdir(exist_ok=True)
+          # 10 focused moving shots (Pexels free license), deliberate day-to-dusk narrative.
+          shots=[
+           {"id":9791713,"fps":30,"t":0.4,"dur":1.90,"x":1160,"text":"VIETNAM, BEYOND THE ORDINARY","sub":"DA NANG / HOI AN"},
+           {"id":8664221,"fps":24,"t":0.5,"dur":1.55,"x":1060},
+           {"id":19135704,"fps":25,"t":0.3,"dur":1.55,"x":700},
+           {"id":15809397,"fps":24,"t":0.6,"dur":1.80,"x":1170,"text":"BEAUTY IN EVERY CORNER"},
+           {"id":15809400,"fps":24,"t":0.6,"dur":1.65,"x":300},
+           {"id":5035564,"fps":30,"t":0.4,"dur":1.75,"x":320},
+           {"id":15693142,"fps":24,"t":0.4,"dur":1.80,"x":1050},
+           {"id":12690267,"fps":24,"t":0.8,"dur":2.10,"x":1050},
+           {"id":12990363,"fps":24,"t":0.7,"dur":2.40,"x":990},
+           {"id":12742204,"fps":24,"t":1.2,"dur":3.70,"x":1050,"text":"YOUR OWN LOCAL STORY","sub":"PRIVATE TOURS • MESSAGE TO PLAN"}
+          ]
+          # 20.2 s; final dramatic CTA begins at the start of last luminous shot.
+          URL={id:f"https://videos.pexels.com/video-files/{id}/{id}-hd_1920_1080_{sp['fps']}fps.mp4" for sp in shots for id in [sp["id"]]}
+          s=requests.Session();s.headers['User-Agent']='Mozilla/5.0 (Travel Film Editorial Production)'
+          for item in shots:
+           id=item['id'];dest=S/f'{id}.mp4'
+           if dest.exists():continue
+           print('GET',id,flush=True)
+           with s.get(URL[id],stream=True,timeout=(30,150)) as r:
+            r.raise_for_status()
+            with dest.open('wb') as f:
+             for chunk in r.iter_content(1024*1024):
+              if chunk:f.write(chunk)
+           if dest.stat().st_size<100000:raise RuntimeError('source incomplete '+str(id))
+          mus=R/'mixkit_one_more_dance.mp3'
+          with s.get('https://assets.mixkit.co/music/288/288.mp3',stream=True,timeout=(30,100)) as q:
+           q.raise_for_status()
+           with mus.open('wb') as f:
+            for chunk in q.iter_content(1024*1024):
+             if chunk:f.write(chunk)
+          W,H=1080,1920
+          def render_title(i,shot):
+           im=Image.new('RGBA',(W,H),(0,0,0,0));dr=ImageDraw.Draw(im)
+           if 'text' not in shot:return im
+           # Subtle contrast scrim just under title
+           for y in range(1320,1920,3):
+            a=int(180*(y-1320)/600)
+            dr.rectangle((0,y,W,y+2),fill=(3,12,22,a))
+           def text_center(t,y,font,col):
+            box=dr.textbbox((0,0),t,font=font)
+            dr.text(((W-(box[2]-box[0]))/2,y),t,font=font,fill=col)
+           bold='/usr/share/fonts/truetype/lato/Lato-Heavy.ttf'
+           plain='/usr/share/fonts/truetype/lato/Lato-Regular.ttf'
+           tt=shot['text']
+           # Size dynamic to prevent clipping
+           size=61 if len(tt)>23 else 67
+           ft=ImageFont.truetype(bold,size)
+           text_center(tt,1507,ft,(255,255,248,252))
+           dr.rounded_rectangle((515,1616,565,1622),radius=4,fill=(238,191,113,248))
+           if shot.get('sub'):
+            ft2=ImageFont.truetype(plain,32)
+            text_center(shot['sub'],1650,ft2,(250,226,195,250))
+           return im
+          def call(a,timeout=350):
+           subprocess.run(a,timeout=timeout,check=True,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+          durations=[]
+          for i,z in enumerate(shots):
+           overlay=R/f"overlay_{i:02}.png"
+           render_title(i,z).save(overlay)
+           dst=C/f"{i:02}.mp4"
+           x=z['x']
+           filt=f"[0:v]fps=24,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920:{x}:0,eq=contrast=1.07:brightness=0.012:saturation=1.105,format=yuv420p[v0];[1:v]format=rgba,fade=t=in:st=0:d=0.22:alpha=1,fade=t=out:st={max(0.1,z['dur']-.28):.3f}:d=0.24:alpha=1[t];[v0][t]overlay=0:0:shortest=1:format=auto,format=yuv420p[v]"
+           cmd=["ffmpeg","-nostdin","-hide_banner","-loglevel","error","-y","-ss",str(z['t']),"-i",str(S/f"{z['id']}.mp4"),"-loop","1","-i",str(overlay),"-filter_complex",filt,"-map","[v]","-an","-r","24","-t",str(z['dur']),"-c:v","libx264","-crf","19","-preset","veryfast",str(dst)]
+           call(cmd)
+           durations.append(z['dur'])
+           print("SCENE COMPLETE",i,z['id'],dst.stat().st_size,flush=True)
+          SUM=sum(durations)
+          with open(R/'list.txt','w') as f:
+           for i in range(len(shots)):f.write("file '"+str((C/f'{i:02}.mp4').resolve())+"'\n")
+          movie=O/'DA_NANG_HOI_AN_CINEMATIC_V5.mp4'
+          audio=f"[1:a]atrim=start=9:duration={SUM:.3f},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.5,afade=t=out:st={SUM-1.2:.3f}:d=1.2,loudnorm=I=-14:TP=-1.5:LRA=9,alimiter=limit=0.90[a]"
+          call(['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-f','concat','-safe','0','-i',str(R/'list.txt'),'-i',str(mus),'-filter_complex',audio,'-map','0:v:0','-map','[a]','-t',str(SUM),'-c:v','copy','-c:a','aac','-b:a','192k','-movflags','+faststart',str(movie)])
+          print('FINAL',movie.stat().st_size,'SEC',SUM,flush=True)
+          # storyboard, verified from the output, not stock search thumbnails
+          sheet=Image.new('RGB',(4*290,3*555),'#faf9f8');d=ImageDraw.Draw(sheet)
+          ft=ImageFont.truetype('/usr/share/fonts/truetype/lato/Lato-Regular.ttf',15)
+          t=0;brightness=[]
+          for i,z in enumerate(shots):
+           mid=t+z['dur']*.48;pic=R/f'scene_{i:02}.jpg'
+           call(['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-ss',str(mid),'-i',str(movie),'-frames:v','1','-vf','scale=275:-1',str(pic)],timeout=45)
+           im=Image.open(pic).convert('RGB')
+           g=np.array(im.convert('L'));brightness.append(float(g.mean()))
+           px=i%4*290;py=i//4*555
+           sheet.paste(im,(px+(290-im.width)//2,py))
+           d.text((px+8,py+513),f"{i+1:02d} {z['id']} {mid:.1f}s",font=ft,fill='#141b23')
+           t+=z['dur']
+          sheet.save(O/'STORYBOARD.jpg',quality=89)
+          # sound, duration, shots, brightness
+          info=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration,size:stream=codec_type,codec_name','-of','json',str(movie)]))
+          qa={'duration':SUM,'real_video_clips':len(shots),'all_distinct':len(set(z['id'] for z in shots))==len(shots),'brightness_by_shot':[round(v,1) for v in brightness],'streams':info['streams'],'mp4_size':movie.stat().st_size}
+          if not any(x['codec_type']=='audio' for x in info['streams']):raise RuntimeError('missing soundtrack')
+          if min(brightness)<16:raise RuntimeError('black scene')
+          (O/'QA.json').write_text(json.dumps(qa,indent=2))
+          (O/'CREDITS.txt').write_text('VIDEO: Free moving footage licensed from Pexels. https://www.pexels.com/license/\\n'+'\\n'.join('https://www.pexels.com/video/'+str(z['id'])+'/' for z in shots)+'\\n\\nMUSIC: One More Dance by Arulo, Mixkit Free Music License https://mixkit.co/license/#musicFree. The track has been edited for timing and loudness.\\n')
+          call(['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-ss','1.0','-i',str(movie),'-frames:v','1',str(O/'COVER.jpg')],timeout=45)
+          print('V5_EXPORT_FINISHED',flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/film_v5.py
+          python /tmp/film_v5.py
+      - name: Export files for visual quality review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cinematic-travel-v5
+          path: v5_export/
+          retention-days: 7
