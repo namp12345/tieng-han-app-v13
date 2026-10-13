@@ -1,0 +1,207 @@
+name: Cinematic Da Nang Hoi An V4
+on:
+  push:
+    branches: [cinematic-reel-v4-20261013]
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Setup video editing dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          pip install -q numpy opencv-python-headless Pillow requests
+      - name: Edit original film from royalty free moving footage
+        run: |
+          cat >/tmp/production.py <<'PY'
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageFont
+          import os, subprocess, requests, json, math, io, time, statistics, numpy as np, cv2
+          R=Path('studio');R.mkdir(exist_ok=True);S=R/'source';S.mkdir(exist_ok=True)
+          OUT=Path('finished');OUT.mkdir(exist_ok=True)
+          FPS=24
+          # Only videos previously verified by direct Pexels stock URLs, with manual content review.
+          sources={
+          4388336:'hd_1920_1080_30fps',
+          9791713:'hd_1920_1080_30fps',
+          12742203:'hd_1920_1080_24fps',
+          8664221:'hd_1920_1080_24fps',
+          19135704:'hd_1920_1080_25fps',
+          15809397:'hd_1920_1080_24fps',
+          5035564:'hd_1920_1080_30fps',
+          12690267:'hd_1920_1080_24fps',
+          12990363:'hd_1920_1080_24fps',
+          13940556:'hd_1920_1080_24fps',
+          12742204:'hd_1920_1080_24fps',
+          15785122:'hd_1920_1080_24fps'
+          }
+          # Cached source identifiers are names of real accessible Pexels videos, not invented imagery.
+          client=requests.Session();client.headers.update({'User-Agent':'Mozilla/5.0'})
+          for v,qual in sources.items():
+           path=S/f'{v}.mp4'
+           url=f'https://videos.pexels.com/video-files/{v}/{v}-{qual}.mp4'
+           print('DOWNLOADING',v,url,flush=True)
+           with client.get(url,stream=True,timeout=(30,150)) as r:
+            r.raise_for_status()
+            with path.open('wb') as f:
+             for chunk in r.iter_content(2**20):
+              if chunk:f.write(chunk)
+           if path.stat().st_size<400000:raise RuntimeError('Missing video source: '+str(v))
+          music=R/'discover_mixkit.mp3'
+          with client.get('https://assets.mixkit.co/music/587/587.mp3',stream=True,timeout=90) as r:
+           r.raise_for_status()
+           with music.open('wb') as f:
+            for chunk in r.iter_content(2**20):
+             if chunk:f.write(chunk)
+          assert music.stat().st_size>500000
+          duration={}
+          for n in sources:
+           cmd=['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',str(S/f'{n}.mp4')]
+           duration[n]=float(subprocess.check_output(cmd,text=True).strip())
+           print('FILE',n,'duration',round(duration[n],2),flush=True)
+          
+          # Meaningful visual story: Coast - community - landmarks - living history - illuminated ending.
+          # No unrelated country, old looping cut, or 3+ reused lantern boat shots.
+          shots=[
+           (4388336, 0.6, 2.30,'intro'),        # sweeping Danang coastline
+           (9791713, 0.4, 2.10,''),             # iconic river/dragon bridge
+           (12742203, 1.2, 1.75,''),            # local basket boats by blue sea
+           (8664221, 0.6, 1.65,''),             # dawn fishing families
+           (19135704, 0.5, 1.90,''),            # Ba Na bridge landmark
+           (15809397, 0.9, 2.30,'heritage'),    # old-town cycling rickshaws & lanterns
+           (5035564, 0.6, 2.00,''),             # Thu Bon river & local fisherman
+           (12690267, 1.1, 2.10,''),           # old town by river twilight
+           (12990363, 1.0, 2.00,''),           # riverside dusk boats
+           (13940556, 0.8, 2.00,''),            # warmly lit lantern boat
+           (12742204, 0.8, 2.00,''),            # lantern festival
+           (15785122, 1.0, 1.90,''),           # night river hyperlapse
+           (12690267, 5.2, 3.60,'cta')         # final river with warm buildings, not a plain black end slide
+          ]
+          # Some videos have shorter duration; change start positions safely after probing.
+          shots=[(i, min(st,max(.1,duration[i]-d-.15)), d, title) for i,st,d,title in shots]
+          total=sum(s[2] for s in shots)
+          print('TOTAL',total,'UNIQUE',len(set(s[0] for s in shots)),flush=True)
+          assert 28<total<33
+          fonts='/usr/share/fonts/truetype/dejavu/'
+          F1=fonts+'DejaVuSansCondensed-Bold.ttf'
+          F2=fonts+'DejaVuSans.ttf'
+          def size_font(sz,bold=True):
+           return ImageFont.truetype(F1 if bold else F2,sz)
+          def slate(w,h,title,chapter):
+           layer=Image.new('RGBA',(w,h),(0,0,0,0));d=ImageDraw.Draw(layer)
+           isportrait=h>w
+           if not title:return layer
+           # Gradient improves contrast while preserving scenery.
+           y0=int(h*.59)
+           for y in range(y0,h,4):
+            a=int(145*(y-y0)/(h-y0))
+            d.rectangle((0,y,w,y+3),fill=(4,13,20,a))
+           if title=='intro':
+            head='DA NANG'
+            line='BEYOND THE POSTCARD'
+           elif title=='heritage':
+            head='HOI AN'
+            line='THE STORIES YOU FEEL'
+           elif title=='cta':
+            head='YOUR VIETNAM. YOUR WAY.'
+            line='PRIVATE LOCAL EXPERIENCES'
+           texts=[(head,int(h*.75),int(w*(.055 if not isportrait else .073)),True,(255,255,249,255)),
+                  (line,int(h*.85),int(w*(.0185 if not isportrait else .030)),False,(249,216,168,250))]
+           if title=='cta':
+            texts[0]=(head,int(h*.69),int(w*(.047 if not isportrait else .046)),True,(255,255,255,255))
+            texts[1]=(line,int(h*.80),int(w*(.020 if not isportrait else .031)),False,(253,224,180,255))
+            texts.append(('MESSAGE TO PLAN YOUR TRIP',int(h*.91),int(w*(.019 if not isportrait else .035)),True,(255,255,255,255)))
+           for txt,y,sz,bold,col in texts:
+            ft=size_font(sz,bold); bb=d.textbbox((0,0),txt,font=ft);tw=bb[2]-bb[0]
+            if tw>w*.93:
+             ft=size_font(int(sz*.91),bold);bb=d.textbbox((0,0),txt,font=ft);tw=bb[2]-bb[0]
+            d.text(((w-tw)/2,y),txt,font=ft,fill=col,stroke_width=1,stroke_fill=(4,6,10,130))
+           return layer
+          def run(cmd,timeout=300):
+           print('RUN:',cmd[-1],flush=True)
+           subprocess.run(cmd,check=True,timeout=timeout)
+          # Story scene montage in two aspect ratios. Explicit safe-area crop anchors.
+          def output_format(key,w,h):
+           story=R/('edits_'+key);story.mkdir(exist_ok=True)
+           position=0
+           for k,(ident,ss,d,chapter) in enumerate(shots):
+            png=R/f'{key}_{k}.png'
+            slate(w,h,chapter,k).save(png)
+            output=story/f'{k:02}.mp4'
+            # Mild warmer daylight highlights, subtle contrast, no fake lens flares or digital zooms.
+            bright = .018 if k in [0,1,2,3,4,5,6] else .012
+            saturation=1.09 if k<=8 else 1.04
+            filters=f"[0:v]fps=24,scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{h},eq=contrast=1.045:brightness={bright}:saturation={saturation},format=yuv420p[base];[1:v]format=rgba,fade=t=in:st=0:d=0.30:alpha=1,fade=t=out:st={max(0.2,d-.42):.3f}:d=0.35:alpha=1[txt];[base][txt]overlay=shortest=1:format=auto,format=yuv420p[v]"
+            cmd=['ffmpeg','-nostdin','-v','error','-y','-ss',str(ss),'-i',str(S/f'{ident}.mp4'),'-loop','1','-i',str(png),'-filter_complex',filters,'-map','[v]','-t',str(d),'-an','-c:v','libx264','-preset','veryfast','-crf','19','-r','24','-pix_fmt','yuv420p',str(output)]
+            run(cmd)
+            if output.stat().st_size<10000:raise RuntimeError('Scene empty: '+str(k))
+           with (R/f'{key}_concat.txt').open('w') as f:
+            for k in range(len(shots)):f.write("file '"+str((story/f'{k:02}.mp4').resolve())+"'\n")
+           output=OUT/f'Da_Nang_Hoi_An_Cinematic_V4_{key}.mp4'
+           # Use actual recorded, licensed orchestral pop, starts near musical opening.
+           af=f'atrim=start=6:duration={total:.4f},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.6,afade=t=out:st={total-1.4:.3f}:d=1.4,loudnorm=I=-15:TP=-1.4:LRA=9,alimiter=limit=0.93'
+           cmd=['ffmpeg','-nostdin','-v','error','-y','-f','concat','-safe','0','-i',str(R/f'{key}_concat.txt'),'-i',str(music),'-filter_complex',f'[1:a]{af}[aud]','-map','0:v:0','-map','[aud]','-c:v','copy','-c:a','aac','-b:a','192k','-ac','2','-t',str(total),'-movflags','+faststart',str(output)]
+           run(cmd)
+           # Save editorial QA storyboard with a frame from each scene
+           thumbnails=[]; now=0
+           for k,(_,_,d,_) in enumerate(shots):
+            moment=now+d*.5;now+=d
+            imgp=R/f'{key}_review_{k}.jpg'
+            cmd=['ffmpeg','-v','error','-nostdin','-y','-ss',f'{moment:.2f}','-i',str(output),'-frames:v','1','-vf','scale=360:-1',str(imgp)]
+            run(cmd,timeout=40)
+            im=Image.open(imgp).convert('RGB')
+            im.thumbnail((360,360));thumbnails.append((k,moment,im))
+           cols=4;Wc=374;Hc=395
+           canvas=Image.new('RGB',(cols*Wc,math.ceil(len(thumbnails)/cols)*Hc),'#f8f8f5')
+           d=ImageDraw.Draw(canvas);tt=size_font(17,False)
+           for k,(index,moment,im) in enumerate(thumbnails):
+            x=(k%cols)*Wc;y=(k//cols)*Hc
+            canvas.paste(im,(x+int((Wc-im.width)/2),y+10))
+            d.text((x+12,y+366),f'Shot {index+1:02} • {moment:4.1f}s',font=tt,fill='#192331')
+           canvas.save(OUT/f'STORYBOARD_{key}.jpg',quality=89)
+           return output
+          master=output_format('LANDSCAPE',1920,1080)
+          reel=output_format('REELS',1080,1920)
+          # Video-tech gate: H264/AAC, full length, nonblack, no silent/missing audio.
+          qa={}
+          for movie in (master,reel):
+           probe=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(movie)],text=True))
+           streams=probe['streams']
+           av=[s for s in streams if s.get('codec_type')=='audio']
+           vv=[s for s in streams if s.get('codec_type')=='video']
+           dur=float(probe['format']['duration'])
+           assert len(av)==1 and len(vv)==1 and av[0]['codec_name']=='aac'
+           assert abs(dur-total)<1.0 and movie.stat().st_size>4_000_000
+           cap=cv2.VideoCapture(str(movie))
+           luminance=[];dark=0;count=0
+           for t in np.linspace(.35,total-.35,65):
+            cap.set(cv2.CAP_PROP_POS_MSEC,float(t)*1000)
+            ok,frame=cap.read()
+            if not ok:continue
+            g=cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+            lum=float(g.mean());luminance.append(lum)
+            dark += lum<16;count+=1
+           cap.release()
+           qa[movie.name]={'duration':round(dur,2),'size_bytes':movie.stat().st_size,'resolution':(vv[0]['width'],vv[0]['height']),'audio':av[0]['codec_name'],'sampled_frames':count,'very_dark_frames':dark,'mean_luma':round(float(np.mean(luminance)),1)}
+           assert dark<=max(2,int(count*.08)),'darkness quality gate failed'
+           assert count>=55
+          print('QUALITY',json.dumps(qa,indent=2),flush=True)
+          (OUT/'TECHNICAL_QA.json').write_text(json.dumps(qa,indent=2),encoding='utf-8')
+          license_text="# DA NANG — HOI AN | SOURCE AND LICENSE RECORD\n\nEditing/style: original compilation with documentary sequence, creative typography, grading and timing. Video clips are sourced from Pexels, their free license allows modified commercial ads (https://www.pexels.com/license/). Footage featuring people is illustrative and does not imply endorsement. No Douyin or YouTube videos reused.\n\n## Footage sources\n"
+          for i in sources:license_text+=f'* https://www.pexels.com/video/{i}/\n'
+          license_text+='\n## Music\n"Discover" — Eugenio Mininni, Mixkit Stock Music Free License. https://mixkit.co/free-stock-music/orchestral-pop/ — https://mixkit.co/license/modal/musicFree/ (online marketing ads permitted). Mastered to -15 LUFS target, -1.4dB true peak target.\n'
+          (OUT/'SOURCES_AND_LICENSES.md').write_text(license_text,encoding='utf-8')
+          print('SUCCESS; finished deliverables available in finished/',flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/production.py
+          python /tmp/production.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Da-Nang-Hoi-An-Cinematic-V4-QA
+          path: finished/
+          retention-days: 10
