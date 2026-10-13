@@ -1,0 +1,32 @@
+name: Pixabay legal source access test
+on:
+  push:
+    branches: [cinematic-reel-v3-20261013]
+permissions:
+  contents: read
+jobs:
+  pixabay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Try official Pixabay public media URL
+        run: |
+          pip install -q yt-dlp requests
+          cat >/tmp/test_pixabay.py <<'PY'
+          import requests,subprocess,os
+          urls=['https://pixabay.com/videos/old-town-hoi-an-vietnam-drone-211662/','https://pixabay.com/videos/river-boats-vietnam-hoi-an-lantern-190346/']
+          for url in urls:
+           print('PAGE',url,flush=True)
+           try:
+            r=requests.get(url,headers={'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36'},timeout=15)
+            print('STATUS',r.status_code,'LENGTH',len(r.content),'VIDEO LINKS',r.text.count('.mp4'),flush=True)
+           except Exception as e:print('PAGE_ERR',str(e),flush=True)
+           print('RUN YTDLP',flush=True)
+           try:
+            p=subprocess.run(['yt-dlp','--no-playlist','--get-url',url],timeout=30,capture_output=True,text=True)
+            print('YTDLP_CODE',p.returncode,'STDOUT',p.stdout[:450],'STDERR',p.stderr[-500:],flush=True)
+           except Exception as e:print('YTDLP_ERR',str(e),flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/test_pixabay.py
+          python /tmp/test_pixabay.py
