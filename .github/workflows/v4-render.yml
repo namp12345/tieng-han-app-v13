@@ -25,7 +25,7 @@ jobs:
           FPS=24
           # Only videos previously verified by direct Pexels stock URLs, with manual content review.
           sources={
-          4388336:'hd_1920_1080_30fps',
+          4388336:'hd_1920_1080_25fps',
           9791713:'hd_1920_1080_30fps',
           12742203:'hd_1920_1080_24fps',
           8664221:'hd_1920_1080_24fps',
