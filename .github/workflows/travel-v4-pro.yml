@@ -1,0 +1,163 @@
+name: V4 cut-to-music travel advertising film
+on:
+  push:
+    branches: [cinematic-reel-v3-20261013]
+permissions:
+  contents: read
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Install production software
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-lato
+          pip install -q numpy Pillow requests
+      - name: Render professional-cut footage and mix licensed song
+        run: |
+          cat >/tmp/v4.py <<'PY'
+          from pathlib import Path
+          import subprocess, requests, json, math, wave
+          import numpy as np
+          from PIL import Image,ImageDraw,ImageFont
+          P=Path("film_v4");P.mkdir(exist_ok=True)
+          VID=P/"source";VID.mkdir(exist_ok=True)
+          CUT=P/"cuts";CUT.mkdir(exist_ok=True)
+          OUT=Path("final_v4");OUT.mkdir(exist_ok=True)
+          # Every scene license verified at Pexels; sources are genuinely moving pictures.
+          seq=[
+           (9791713,"30",1.0,2.25,"DA NANG","A city worth discovering"),
+           (8664221,"24",1.0,2.00,None,None),
+           (19135704,"25",1.1,1.55,None,None),
+           (15809397,"24",1.0,2.3,"HOI AN","A different kind of journey"),
+           (15809398,"24",2.0,1.75,None,None),
+           (15809401,"24",0.75,1.40,None,None),
+           (5035564,"30",0.8,2.1,None,None),
+           (15693142,"24",0.6,1.9,None,None),
+           (12690267,"24",0.9,2.25,None,None),
+           (12990363,"24",0.7,2.55,"MAGIC AT DUSK",None),
+           (12742204,"24",1.2,2.20,None,None),
+           (17972072,"30",1.0,3.65,"TWO CITIES. ONE STORY.","PRIVATE LOCAL TOURS  •  MESSAGE TO PLAN")
+          ]
+          FPS=24
+          # strictly use direct URLs confirmed in CDN HEAD probes
+          known={
+          9791713:"hd_1920_1080_30fps",8664221:"hd_1920_1080_24fps",
+          19135704:"hd_1920_1080_25fps",15809397:"hd_1920_1080_24fps",
+          15809398:"hd_1920_1080_24fps",15809401:"hd_1920_1080_24fps",
+          5035564:"hd_1920_1080_30fps",15693142:"hd_1920_1080_24fps",
+          12690267:"hd_1920_1080_24fps",12990363:"hd_1920_1080_24fps",
+          12742204:"hd_1920_1080_24fps",17972072:"hd_1920_1080_30fps"}
+          s=requests.Session();s.headers["User-Agent"]="Mozilla/5.0 (compatible; Licensed-Film-Production/1.0)"
+          for id,*_ in seq:
+           target=VID/f"{id}.mp4"
+           if target.exists() and target.stat().st_size>200000:continue
+           url=f"https://videos.pexels.com/video-files/{id}/{id}-{known[id]}.mp4"
+           print("GET CLIP",id,flush=True)
+           with s.get(url,timeout=(30,130),stream=True) as res:
+            res.raise_for_status()
+            with open(target,'wb') as f:
+             for chunk in res.iter_content(1024*1024):
+              if chunk:f.write(chunk)
+           assert target.stat().st_size>300000
+          mu=P/"mixkit_Arulo_One_More_Dance.mp3"
+          with s.get("https://assets.mixkit.co/music/288/288.mp3",timeout=(25,130),stream=True) as res:
+           res.raise_for_status()
+           with open(mu,'wb') as f:
+            for c in res.iter_content(1024*1024):
+             if c:f.write(c)
+          print("MUSIC",mu.stat().st_size,flush=True)
+          W,H=1080,1920
+          FB="/usr/share/fonts/truetype/lato/Lato-Heavy.ttf"
+          FM="/usr/share/fonts/truetype/lato/Lato-Regular.ttf"
+          def font(path,size):return ImageFont.truetype(path,size)
+          def layer(i,title,sub):
+           im=Image.new("RGBA",(W,H));dr=ImageDraw.Draw(im)
+           if title:
+            for y in range(1170,1920,3):
+             a=int(175*((y-1170)/750)**1.1)
+             dr.rectangle((0,y,W,y+2),fill=(2,12,21,a))
+            ft=font(FB,70 if len(title)<22 else 58)
+            mini=font(FM,34)
+            def center(tx,y,ft,color):
+             box=dr.textbbox((0,0),tx,font=ft);dx=(W-(box[2]-box[0]))/2
+             dr.text((dx,y),tx,font=ft,fill=color,stroke_width=1,stroke_fill=(20,22,28,170))
+            # four designed title beats only
+            pos=1460 if i!=len(seq)-1 else 1370
+            center(title,pos,ft,(255,255,251,250))
+            dr.rounded_rectangle((W/2-49,pos+103,W/2+49,pos+110),radius=3,fill=(238,192,126,255))
+            if sub:center(sub,pos+135,mini,(244,227,205,250))
+            if i==len(seq)-1:center("DA NANG  /  HOI AN",pos+215,font(FM,24),(255,239,210,248))
+           return im
+          def cmd(x,t=300):
+           print("RUN",x[-1],flush=True)
+           subprocess.run(x,check=True,timeout=t)
+          TIMES=[]
+          for i,(id,fps,seek,dur,title,sub) in enumerate(seq):
+           img=P/f"typography_{i}.png";layer(i,title,sub).save(img)
+           dst=CUT/f"scene_{i:02d}.mp4"
+           # slight push in on drone hook, otherwise keep original smooth action and avoid artificial effects
+           # Keep location recognizable when cropping landscape to vertical: scale content with crop at center
+           vf="[0:v]fps=24,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,eq=contrast=1.04:saturation=1.045,format=yuv420p[v0];[1:v]format=rgba,fade=t=in:st=0:d=0.18:alpha=1,fade=t=out:st="+str(max(0.1,dur-0.32))+":d=0.28:alpha=1[t];[v0][t]overlay=0:0:shortest=1:format=auto,format=yuv420p[vout]"
+           cmd(["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-ss",str(seek),"-i",str(VID/f"{id}.mp4"),"-loop","1","-i",str(img),"-filter_complex",vf,"-map","[vout]","-t",str(dur),"-an","-r","24","-c:v","libx264","-crf","19","-preset","veryfast","-pix_fmt","yuv420p",str(dst)])
+           assert dst.stat().st_size>15000
+           TIMES.append(dur)
+          SUM=sum(TIMES)
+          print("DURATION",SUM,flush=True)
+          with open(P/"concat.txt","w") as f:
+           for i in range(len(seq)): f.write("file '"+str((CUT/f"scene_{i:02d}.mp4").resolve())+"'\n")
+          # Use strong chorus-oriented beach pop, not synthesized music. Use correct loudness for mobile.
+          dst=OUT/"Da_Nang_Hoi_An_Travel_Film_V4.mp4"
+          am=f"[1:a]atrim=start=6:duration={SUM:.3f},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=0.45,afade=t=out:st={SUM-1.7:.3f}:d=1.7,loudnorm=I=-15:TP=-1.5:LRA=8,alimiter=limit=0.92[a]"
+          cmd(["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-f","concat","-safe","0","-i",str(P/"concat.txt"),"-i",str(mu),"-filter_complex",am,"-map","0:v:0","-map","[a]","-t",str(SUM),"-c:v","copy","-c:a","aac","-b:a","192k","-movflags","+faststart",str(dst)],t=240)
+          assert dst.stat().st_size>5_000_000
+          # Every actual scene preview taken from *the final video*
+          meta=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_format","-show_streams","-of","json",str(dst)]))
+          samples=[]
+          t=0
+          for i,dur in enumerate(TIMES):
+           st=t+dur*.52
+           frame=P/f"f{i:02d}.jpg"
+           cmd(["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-ss",str(st),"-i",str(dst),"-frames:v","1","-vf","scale=300:-1",str(frame)],t=50)
+           pic=Image.open(frame).convert("RGB")
+           pic.thumbnail((300,550))
+           samples.append((i,st,pic))
+           t+=dur
+          SW,SH=310,560
+          sheet=Image.new("RGB",(SW*4,SH*math.ceil(len(samples)/4)),(243,243,241))
+          drawer=ImageDraw.Draw(sheet)
+          labelfont=font(FM,17)
+          for j,(i,st,pic) in enumerate(samples):
+           x=(j%4)*SW;y=(j//4)*SH
+           sheet.paste(pic,(x+(SW-pic.width)//2,y))
+           drawer.text((x+8,y+SH-26),f"#{i+1:02} / {st:.1f}s / {seq[i][0]}",font=labelfont,fill=(20,22,30))
+          sheet.save(OUT/"REVIEW_12_SCENES.jpg",quality=90)
+          # Sample screen darkness and dynamics
+          vals=[]
+          for i,st,pic in samples:
+           g=np.array(pic.convert("L"),dtype=np.float32)
+           vals.append({'scene':i+1,'id':seq[i][0],'brightness':round(float(g.mean()),1),'detail':round(float(np.var(g)),1)})
+          if not any(s['codec_type']=='audio' for s in meta['streams']):raise RuntimeError('audio missing')
+          if abs(float(meta['format']['duration'])-SUM)>0.7:raise RuntimeError('wrong duration')
+          if any(x['brightness']<18 for x in vals):raise RuntimeError('excessively dark scene')
+          rept=len(seq)-len(set(x[0] for x in seq))
+          qc={"dur":float(meta['format']['duration']),"bytes":dst.stat().st_size,"unique_video_sources":len(seq)-rept,"repeated_sources":rept,"audio":True,"scene_brightness":vals}
+          (OUT/"TECHNICAL_QA.json").write_text(json.dumps(qc,indent=2))
+          # Attribution and license details
+          lines=["VIDEO CLIPS: Each video edited from Pexels footage under the Pexels License (free commercial marketing use, subject to limits on implied endorsement): https://www.pexels.com/license/\n"]
+          for id in known:
+           if id in [x[0] for x in seq]:lines.append(f"https://www.pexels.com/video/{id}/")
+          lines.append("\nMusic: One More Dance by Arulo — Mixkit free stock music license: https://mixkit.co/license/#musicFree")
+          (OUT/"CREDITS.txt").write_text("\n".join(lines),encoding="utf-8")
+          cmd(["ffmpeg","-hide_banner","-loglevel","error","-nostdin","-y","-ss","1.2","-i",str(dst),"-frames:v","1",str(OUT/"COVER.jpg")],t=50)
+          print("COMPLETED",dst,dst.stat().st_size,flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/v4.py
+          python /tmp/v4.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DaNang-HoiAn-Film-V4-QA
+          path: final_v4/
+          retention-days: 7
