@@ -1,0 +1,37 @@
+name: Editorial footage scout
+on:
+  push:
+    branches: [pro-travel-edit-20261013]
+permissions:
+  contents: read
+jobs:
+  scout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Search open travel footage and music
+        run: |
+          python -m pip install --quiet requests
+          cat > /tmp/scout.py <<'PY'
+          import json,re,requests
+          s=requests.Session();s.headers['User-Agent']='Travel-Editorial-Research/1.0 (non-commercial demo; Wikimedia media search)'
+          terms=['Da Nang video','Da Nang beach','My Khe beach','Danang drone','Son Tra Peninsula','Dragon Bridge Vietnam','Hoi An lanterns','Hoi An night','Hoi An ancient town','Hoi An river boats','Vietnam basket boat','Golden Bridge Ba Na Hills']
+          for term in terms:
+           try:
+            x=s.get('https://commons.wikimedia.org/w/api.php',params=dict(action='query',list='search',srsearch=term+' filetype:video',srnamespace=6,srlimit=12,format='json'),timeout=24).json()
+            print('\nSEARCH',term,'matches',x.get('query',{}).get('searchinfo',{}).get('totalhits'),flush=True)
+            for a in x.get('query',{}).get('search',[]): print('  ',a['title'][:120],flush=True)
+           except Exception as e:print('ERR',repr(e),flush=True)
+          for url in ['https://mixkit.co/free-stock-music/tag/travel/','https://pixabay.com/music/beautiful-plays-cinematic-documentary-115669/']:
+           try:
+            r=s.get(url,timeout=18);print('MUSIC_SITE',url,r.status_code,len(r.content),flush=True)
+            urls=re.findall(r'https?://[^" ]+\.mp3[^" ]*',r.text)
+            print('MP3 URLs',urls[:8],flush=True)
+            if 'mixkit' in url:
+             for term in ['Tears of Joy','Discover','Serene View']:
+              i=r.text.find(term);print('MUSIC_MARKER',term,r.text[max(i-300,0):i+300][:600],flush=True)
+           except Exception as e: print('MUSIC ERROR',str(e),flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/scout.py
+          python /tmp/scout.py
