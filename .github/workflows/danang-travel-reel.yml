@@ -1,0 +1,155 @@
+name: Danang travel reel render
+on:
+  push:
+    branches: [video-render-danang-oct2026]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Install rendering dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          python -m pip install --quiet numpy Pillow requests
+      - name: Download authentic footage and edit video
+        shell: bash
+        run: |
+          cat > /tmp/danang_render.py <<'PY'
+          import os, io, math, time, wave, subprocess
+          from pathlib import Path
+          import requests
+          import numpy as np
+          from PIL import Image, ImageDraw, ImageFont
+          from urllib.parse import quote
+          
+          W,H,FPS=1080,1920,24
+          out=Path("output");out.mkdir(exist_ok=True)
+          med=Path("footage");med.mkdir(exist_ok=True)
+          segs=Path("segments");segs.mkdir(exist_ok=True)
+          s=requests.Session();s.headers.update({"User-Agent":"TravelVideoEditor/1.0 (Wikimedia Commons freely licensed video project; contact: video-editor@example.org)"})
+          files=[
+           ("dragon","Dragon Bridge breathing fire.ogv","Christophe95","CC BY-SA 4.0"),
+           ("market","HoiAn Market.webm","Poiana11","CC0 1.0"),
+           ("coast","Arrival at InterContinental Danang Sun Peninsula Resort – IHG Fam Trip Vietnam May 2025.webm","Jcsantos85","CC BY-SA 4.0"),
+           ("town","Hoi An city tour , Vietnam.webm","Le Monde en Vidéo","CC BY 3.0")
+          ]
+          downloads={}
+          for key,title,author,license in files:
+           try:
+            api="https://commons.wikimedia.org/w/api.php"
+            rr=s.get(api,params={"action":"query","format":"json","prop":"videoinfo","viprop":"url|derivatives","titles":"File:"+title},timeout=35);rr.raise_for_status()
+            pg=next(iter(rr.json()["query"]["pages"].values()))
+            vi=pg["videoinfo"][0]
+            choices=vi.get("derivatives",[])
+            choices=[p for p in choices if ".webm" in p.get("src","") and any(v in p.get("src","").lower() for v in ("480p","360p","720p"))]
+            choices.sort(key=lambda p: 0 if "480p" in p["src"] else (1 if "360p" in p["src"] else 2))
+            u=choices[0]["src"] if choices else vi["url"]
+            if u.startswith("//"): u="https:"+u
+            dst=med/(key+("." + u.split("?")[0].split(".")[-1]))
+            print("downloading",key,u,flush=True)
+            with s.get(u,stream=True,timeout=(35,120)) as dl:
+             dl.raise_for_status()
+             with open(dst,"wb") as f:
+              for chunk in dl.iter_content(1024*1024):
+               if chunk:f.write(chunk)
+            if dst.stat().st_size<100000:raise Exception("tiny footage")
+            downloads[key]=dst
+            print("ready",key,dst.stat().st_size,flush=True)
+           except Exception as e: print("source unavailable",key,str(e)[:200],flush=True)
+          if len(downloads)<2:raise RuntimeError("Need at least two successfully downloaded authentic footage sources")
+          def probe(file):
+           cmd=["ffprobe","-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",str(file)]
+           try: return float(subprocess.check_output(cmd).decode().strip())
+           except:return 10.0
+          durations={k:probe(v) for k,v in downloads.items()}
+          # Prepare original ambient electronic travel score.
+          SR=22050;dur=32;tt=np.arange(int(SR*dur),dtype=np.float64)/SR
+          score=np.zeros(len(tt),dtype=np.float64)
+          roots=[(196.00,246.94,293.66,392.00),(174.61,220.00,261.63,349.23),(130.81,164.81,196.00,261.63),(146.83,185.00,220.00,293.66)]
+          for idx,notes in enumerate(roots):
+           a=idx*8;b=(idx+1)*8
+           sel=(tt>=a)&(tt<b);t=tt[sel]-a
+           env=np.minimum(1,t/1.6)*np.minimum(1,(8-t)/1.8)
+           for j,freq in enumerate(notes):
+            score[sel]+=0.050*env*np.sin(2*np.pi*freq*t+(j*.27))
+           # harmonic shimmer
+           score[sel]+=0.012*env*np.sin(2*np.pi*notes[0]*2*t)
+          for k in np.arange(0,32,.5):
+           sel=(tt>=k)&(tt<k+.12);x=tt[sel]-k
+           score[sel]+=0.020*np.random.default_rng(int(k*10)+123).standard_normal(len(x))*np.exp(-40*x)
+          for k in np.arange(0,32,2):
+           sel=(tt>=k)&(tt<k+.40);x=tt[sel]-k
+           score[sel]+=0.105*np.sin(2*np.pi*(72-45*x)*x)*np.exp(-13*x)
+          score*=np.minimum(1,tt/1.3)*np.minimum(1,(dur-tt)/1.8)
+          score=np.int16(np.clip(score,-.96,.96)*32767)
+          with wave.open("sound.wav","wb") as wf:
+           wf.setnchannels(1);wf.setsampwidth(2);wf.setframerate(SR);wf.writeframes(score.tobytes())
+          font="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+          texts=[
+           ("DA NANG","WHERE THE JOURNEY BEGINS"),
+           ("UNFORGETTABLE","NIGHTS BY THE RIVER"),
+           ("WANDER","THE STREETS OF HOI AN"),
+           ("MEET THE LOCALS","DISCOVER EVERY DETAIL"),
+           ("SLOW DOWN","FIND YOUR OWN RHYTHM"),
+           ("EXPLORE MORE","BEYOND THE ORDINARY"),
+           ("YOUR STORY","STARTS HERE"),
+           ("DA NANG + HOI AN","PRIVATE LOCAL EXPERIENCES")
+          ]
+          sequence=["coast","dragon","town","market","town","coast","town","dragon"]
+          available=list(downloads)
+          def choose(k,i):
+           if k in downloads:return k
+           return available[i%len(available)]
+          for i,desired in enumerate(sequence):
+           k=choose(desired,i);src=downloads[k];d=durations[k]
+           startopts={"coast":[2,14,27],"dragon":[1,7,10],"town":[18,730,1200],"market":[2,8,15]}
+           pos=startopts.get(k,[2])[i%len(startopts.get(k,[2]))]
+           if d<pos+4.3: pos=max(.1,d-4.6)
+           if d<4.3:pos=0
+           title,sub=texts[i]
+           overlay=Image.new("RGBA",(W,H),(0,0,0,0));draw=ImageDraw.Draw(overlay)
+           # gradient band bottom ensures legibility without hiding the photo
+           for y in range(1330,1920,2):
+            a=int(165*(y-1330)/(1920-1330))
+            draw.rectangle((0,y,W,y+1),fill=(7,12,22,a))
+           ft=ImageFont.truetype(font,82 if len(title)<15 else 63)
+           fs=ImageFont.truetype(font,30)
+           bb=draw.textbbox((0,0),title,font=ft);tw=bb[2]-bb[0]
+           draw.text(((W-tw)/2,1490),title,font=ft,fill="white",stroke_width=2,stroke_fill=(20,24,30,190))
+           bb=draw.textbbox((0,0),sub,font=fs);tw=bb[2]-bb[0]
+           draw.text(((W-tw)/2,1612),sub,font=fs,fill=(232,207,152,255))
+           draw.rounded_rectangle((W//2-48,1710,W//2+48,1717),radius=3,fill=(236,195,119,255))
+           if i==7:
+            fcta=ImageFont.truetype(font,28);caption="MESSAGE US TO PLAN YOUR TRIP"
+            bb=draw.textbbox((0,0),caption,font=fcta);tw=bb[2]-bb[0]
+            draw.text(((W-tw)/2,1780),caption,font=fcta,fill="white")
+           overlay.save(f"overlay_{i:02}.png")
+           dest=segs/f"shot_{i:02}.mp4"
+           # preserve actual full motion; no stills or synthesized place images
+           filt=f"[0:v]fps={FPS},scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},eq=saturation=1.08:contrast=1.05,format=yuv420p[v];[v][1:v]overlay=0:0:shortest=1,format=yuv420p[out]"
+           cmd=["ffmpeg","-nostdin","-hide_banner","-loglevel","error","-y","-ss",str(pos),"-i",str(src),"-loop","1","-i",f"overlay_{i:02}.png","-filter_complex",filt,"-map","[out]","-an","-t","4","-r",str(FPS),"-c:v","libx264","-preset","veryfast","-crf","22","-pix_fmt","yuv420p",str(dest)]
+           print("encoding",i,k,flush=True)
+           subprocess.run(cmd,check=True)
+           if dest.stat().st_size<20000:raise RuntimeError("Bad scene "+str(i))
+          with open("list.txt","w") as f:
+           for i in range(8):f.write("file '"+str((segs/f"shot_{i:02}.mp4").resolve())+"'\n")
+          subprocess.run(["ffmpeg","-hide_banner","-loglevel","error","-y","-f","concat","-safe","0","-i","list.txt","-i","sound.wav","-map","0:v:0","-map","1:a:0","-c:v","copy","-c:a","aac","-b:a","160k","-af","afade=t=in:st=0:d=0.8,afade=t=out:st=30:d=2","-t","32","-movflags","+faststart",str(out/"danang_hoi_an_real.mp4")],check=True)
+          credits="DA NANG / HOI AN -- REAL FOOTAGE\nThis is a remix based on licensed clips and should be distributed under CC BY-SA 4.0. Please credit each source used:\n"
+          for k,t,a,l in files:
+           if k in downloads:credits+=f"\n{a} | {t} | {l}\nhttps://commons.wikimedia.org/wiki/File:{quote(t.replace(' ','_'))}\n"
+          credits+="\nClips cropped/color graded/trimmed. Original synthesized score. No Douyin footage used.\n"
+          (out/"CREDITS.txt").write_text(credits,encoding="utf-8")
+          subprocess.run(["ffmpeg","-hide_banner","-loglevel","error","-y","-ss","2","-i",str(out/"danang_hoi_an_real.mp4"),"-frames:v","1",str(out/"poster.jpg")],check=True)
+          print("FINISHED",str(out/"danang_hoi_an_real.mp4"),(out/"danang_hoi_an_real.mp4").stat().st_size,flush=True)
+          
+          PY
+          python /tmp/danang_render.py
+      - name: Upload finished MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: danang-real-footage-final
+          path: output/
