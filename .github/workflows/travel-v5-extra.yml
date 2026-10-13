@@ -1,0 +1,65 @@
+name: V5 additional iconic footage scout
+on:
+  push:
+    branches: [cinematic-reel-v3-20261013]
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - name: Setup
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q requests Pillow
+      - name: Probe more Pexels free stock clips
+        run: |
+          cat >/tmp/probe_new.py <<'PY'
+          import concurrent.futures,requests,subprocess,json,math
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageFont
+          ids={"4030290":"Hoi An old town aerial","4030306":"Hoi An river aerial","4390353":"Vietnam food possibly","15785121":"Hoi An lantern timelapse","15809400":"Hoi An lantern street pedestrians","19135695":"Ba Na hills Buddha","29226362":"Hoi An aerial vibrant dusk","31137115":"Hoi An traditional street local","35441703":"Da Nang lighthouse","35503523":"Da Nang coastline sculpture","36670222":"Hoi An sunset drone","37510579":"Hoi An nighttime boat walk"}
+          opts=[(q,sz,fps) for q in ('hd','sd','uhd') for sz in ('1920_1080','1080_1920','1280_720','720_1280','3840_2160') for fps in (24,25,30,29,60,50)]
+          def test(inp):
+           i,q,z,f=inp;u=f"https://videos.pexels.com/video-files/{i}/{i}-{q}_{z}_{f}fps.mp4"
+           try:
+            r=requests.head(u,timeout=6)
+            if r.status_code==200 and "video" in r.headers.get('content-type',''):
+             return (i,u,int(r.headers.get('content-length',0)))
+           except:pass
+          T=[(i,*t) for i in ids for t in opts]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=38) as pool:
+           results=[q for q in pool.map(test,T) if q]
+          d={}
+          for i,label in ids.items():
+           files=[x for x in results if x[0]==i]
+           files.sort(key=lambda x:(0 if '1920_1080' in x[1] else 1 if '1080_1920' in x[1] else 2,-x[2]))
+           if files:
+            d[i]={'name':label,'url':files[0][1],'size':files[0][2]}
+            print('OK',i,label,files[0][1],flush=True)
+           else:print('MISSING',i,label,flush=True)
+          out=Path('more');out.mkdir(exist_ok=True)
+          (out/'urls.json').write_text(json.dumps(d,indent=2))
+          imset=[]
+          for i,e in d.items():
+           p=out/f'{i}.jpg'
+           try:
+            subprocess.run(['ffmpeg','-y','-nostdin','-loglevel','error','-ss','1','-i',e['url'],'-vf','scale=360:-1','-frames:v','1',str(p)],timeout=45,check=True)
+            im=Image.open(p).convert('RGB');im.thumbnail((360,220));imset.append((i,e['name'],im))
+           except Exception as x:print('ERR',i,str(x)[:200],flush=True)
+          cw,ch=370,260;cols=3;cv=Image.new('RGB',(cw*cols,ch*math.ceil(len(imset)/cols)),'white');dr=ImageDraw.Draw(cv)
+          ft=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',15)
+          for k,(i,name,im) in enumerate(imset):
+           x=k%cols*cw;y=k//cols*ch
+           cv.paste(im,(x+(cw-im.width)//2,y+28))
+           dr.text((x+6,y+5),str(i)+" "+name,font=ft,fill='black')
+          cv.save(out/'contact.jpg')
+          
+          PY
+          sed -i 's/^          //' /tmp/probe_new.py
+          python /tmp/probe_new.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v5-new-source-preview
+          path: more/
