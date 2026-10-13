@@ -1,0 +1,40 @@
+name: Licensed b-roll source access test
+on:
+  push:
+    branches: [pro-travel-edit-20261013]
+permissions:
+  contents: read
+jobs:
+  sourcecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Test stock footage sources
+        run: |
+          python -m pip install -q requests
+          cat > /tmp/check.py <<'PY'
+          import requests,re,json,html
+          s=requests.Session();s.headers.update({'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/126 Safari/537.36','Accept-Language':'en-US,en;q=0.9'})
+          urls=[
+          'https://www.pexels.com/video/the-dragon-bridge-of-vietnam-9791713/',
+          'https://www.pexels.com/video/panoramic-view-of-da-nang-city-skyline-34754952/',
+          'https://mixkit.co/free-stock-video/vietnam/',
+          'https://mixkit.co/free-stock-video/hoi-an/',
+          'https://pixabay.com/videos/river-boats-vietnam-hoi-an-lantern-190346/',
+          'https://www.videvo.net/search/da-nang/',
+          ]
+          for url in urls:
+           try:
+            r=s.get(url,timeout=15)
+            print('SOURCE',r.status_code,len(r.content),r.url,flush=True)
+            for ext in ['.mp4','.m3u8','videos.pexels','assets.mixkit','video-files','cdn.pixabay']:
+             print(' matches',ext,r.text.lower().count(ext.lower()),flush=True)
+            print(' MEDIA_URLS ',re.findall(r'https?[^"\' <>]+(?:\.mp4|\.webm|\.m3u8)[^"\' <>]*',r.text)[:7],flush=True)
+            if 'mixkit' in url: 
+             z=re.findall(r'href="(/free-stock-video/[^"]+)"',r.text)
+             print('MIXKIT CLIPS',z[:20],flush=True)
+           except Exception as e:print('SOURCE_FAIL',repr(e),flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/check.py
+          python /tmp/check.py
