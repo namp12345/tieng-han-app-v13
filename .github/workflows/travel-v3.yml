@@ -1,0 +1,90 @@
+name: V3 footage quality audit
+on:
+  push:
+    branches: [cinematic-reel-v3-20261013]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Setup
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+          pip install --quiet requests Pillow
+      - name: Inspect licensed video and music candidates
+        run: |
+          cat >/tmp/v3_scout.py <<'PY'
+          import os, json, re, requests, concurrent.futures, subprocess, math
+          from PIL import Image,ImageDraw,ImageFont
+          from pathlib import Path
+          candidates={"4030290":"Hoi An aerial roofs","4030304":"Hoi An village drone","4030306":"Hoi An aerial river","4030325":"Hoi An aerial street","4388336":"Vietnam coastal skyline (verify)","5035564":"Hoi An local river","8664221":"Da Nang morning beach","9791713":"Da Nang aerial Dragon Bridge","12690267":"Hoi An river street","12737212":"Hoi An canal by night","12737266":"Hoi An boats","12742204":"Hoi An lantern night boats","12990363":"Hoi An lit boats at dusk","13933942":"Hoi An night boats","15785122":"Hoi An lanterns time lapse","17972072":"Han river night","19135704":"Ba Na Golden Bridge","29031262":"Hoi An green rice fields","30319062":"Vietnam banh mi preparation","30329515":"Vietnam sandwich closeup","31317451":"Vietnam street food","31599059":"Da Nang families beach","34938309":"Da Nang beach sunset","35441703":"Da Nang coastal lighthouse","35503523":"Da Nang coastal plaza","36670220":"Hoi An evening candidate","36670222":"Hoi An sunset drone","37510579":"Hoi An lantern nightlife","37510582":"Hoi An boat night"}
+          out=Path("v3_scout");out.mkdir(exist_ok=True)
+          versions=[(x,y,z) for x in ["hd","sd"] for y in ["1920_1080","1080_1920","1280_720","720_1280","3840_2160"] for z in [24,25,30,60,50,29,23,59]]
+          def chk(task):
+           ident,qual,res,fps=task
+           u=f"https://videos.pexels.com/video-files/{ident}/{ident}-{qual}_{res}_{fps}fps.mp4"
+           try:
+            r=requests.head(u,allow_redirects=True,timeout=7,headers={"User-Agent":"Mozilla/5.0"})
+            if r.status_code==200 and "video" in r.headers.get("content-type",""):
+             return (ident,u,int(r.headers.get("content-length","0")))
+           except: pass
+           return None
+          tasks=[(int(i),*v) for i in candidates for v in versions]
+          print("Probing",len(tasks),"URL variants",flush=True)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=45) as ex: found=[x for x in ex.map(chk,tasks) if x]
+          good={}
+          for ident,label in candidates.items():
+           poss=[x for x in found if str(x[0])==str(ident) and x[2]>100000]
+           poss.sort(key=lambda x:(0 if "1920_1080" in x[1] else 1 if "1080_1920" in x[1] else 2 if "1280_720" in x[1] else 3,x[2]))
+           if poss: good[ident]={"label":label,"url":poss[0][1],"bytes":poss[0][2]};print("FOUND",ident,label,poss[0][1],flush=True)
+           else: print("MISSING",ident,label,flush=True)
+          (out/"sources.json").write_text(json.dumps(good,indent=2),encoding="utf-8")
+          # collect two review frames at fixed timestamps without downloading full file
+          panels=[]
+          for ident,obj in good.items():
+           for sec in (1,4):
+            pic=out/f"{ident}_{sec}.jpg"
+            try:
+             subprocess.run(["ffmpeg","-nostdin","-hide_banner","-loglevel","error","-y","-i",obj["url"],"-ss",str(sec),"-frames:v","1","-vf","scale=380:-1",str(pic)],check=True,timeout=45)
+             im=Image.open(pic).convert("RGB"); im.thumbnail((380,220));panels.append((ident,obj["label"],sec,im))
+            except Exception as e:print("FRAME_SKIP",ident,sec,str(e)[:120],flush=True)
+          cols=4;tw=390;th=264;rows=math.ceil(len(panels)/cols)
+          sheet=Image.new("RGB",(tw*cols,th*rows),"white");d=ImageDraw.Draw(sheet)
+          f="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+          ft=ImageFont.truetype(f,15)
+          for k,(ident,label,sec,im) in enumerate(panels):
+           x=k%cols*tw;y=k//cols*th
+           sheet.paste(im,(x,y+40))
+           d.text((x+3,y+1),str(ident)+" "+label[:28],font=ft,fill="black")
+           d.text((x+3,y+21),f"t={sec}s",font=ft,fill="black")
+          sheet.save(out/"contact.jpg",quality=87)
+          print("CONTACT",len(panels),"panels",flush=True)
+          # licensed professional tracks metadata from Mixkit
+          for url in ["https://mixkit.co/free-stock-music/film-score/","https://mixkit.co/free-stock-music/tag/travel/","https://mixkit.co/free-stock-music/mood/uplifting/"]:
+           try:
+            html=requests.get(url,timeout=25).text
+            scripts=re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>',html,re.S|re.I)
+            for raw in scripts:
+             try: blob=json.loads(raw)
+             except: continue
+             def walk(a):
+              if isinstance(a,dict):
+               if a.get('@type')=='MusicRecording':yield a
+               for v in a.values():yield from walk(v)
+              if isinstance(a,list):
+               for v in a:yield from walk(v)
+             for a in walk(blob):
+              print("SONG",a.get('name'),a.get('genre'),a.get('duration'),a.get('url'),flush=True)
+           except Exception as e:print("MUSIC ERR",str(e),flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/v3_scout.py
+          python /tmp/v3_scout.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v3-source-audit
+          path: v3_scout/
+          retention-days: 5
