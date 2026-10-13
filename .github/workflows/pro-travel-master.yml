@@ -1,0 +1,141 @@
+name: FINAL real footage travel advertisement
+on:
+  push:
+    branches: [pro-travel-edit-20261013]
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 36
+    steps:
+      - name: Install video production tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -qq -y ffmpeg fonts-dejavu-core
+          python -m pip install -q requests Pillow
+      - name: Edit and master travel ad
+        run: |
+          cat > /tmp/produce.py <<'PY'
+          import os,math,subprocess,json,re,requests,time,shutil
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageFont
+          BASE=Path('production');BASE.mkdir(exist_ok=True)
+          SRC=BASE/'sources';SRC.mkdir(exist_ok=True)
+          SEG=BASE/'segments';SEG.mkdir(exist_ok=True)
+          OUT=Path('output');OUT.mkdir(exist_ok=True)
+          scenes=[
+           dict(id=9791713,label='DA NANG',subtitle='WHERE THE CITY MEETS THE SEA',name='Dragon Bridge aerial',start=0),
+           dict(id=8664221,label='MY KHE BEACH',subtitle='FEEL THE MORNING RHYTHM',name='Da Nang beach morning',start=8),
+           dict(id=19135704,label='GOLDEN BRIDGE',subtitle='A WALK ABOVE THE CLOUDS',name='Ba Na Hills Golden Bridge',start=0),
+           dict(id=5035564,label='THE LOCAL LIFE',subtitle='THE MOMENTS IN BETWEEN',name='Hoi An fishermen on river',start=0),
+           dict(id=12690267,label='HOI AN',subtitle='FOLLOW THE RIVER INTO HISTORY',name='Hoi An old-town riverside',start=1),
+           dict(id=13940556,label='HOI AN AFTER DARK',subtitle='WHERE A THOUSAND LANTERNS GLOW',name='Hoi An boat lanterns',start=1),
+           dict(id=15785122,label='MAKE IT YOURS',subtitle='BEYOND THE ORDINARY',name='Hoi An river lantern timelapse',start=1),
+           dict(id=17972072,label='DA NANG  ×  HOI AN',subtitle='PRIVATE LOCAL EXPERIENCES',cta='MESSAGE TO PLAN YOUR TRIP',name='Han River at night',start=1),
+          ]
+          SOURCE_URLS={
+           9791713:'https://videos.pexels.com/video-files/9791713/9791713-hd_1920_1080_30fps.mp4',
+           8664221:'https://videos.pexels.com/video-files/8664221/8664221-hd_1920_1080_24fps.mp4',
+           19135704:'https://videos.pexels.com/video-files/19135704/19135704-hd_1920_1080_25fps.mp4',
+           5035564:'https://videos.pexels.com/video-files/5035564/5035564-hd_1920_1080_30fps.mp4',
+           12690267:'https://videos.pexels.com/video-files/12690267/12690267-hd_1920_1080_24fps.mp4',
+           13940556:'https://videos.pexels.com/video-files/13940556/13940556-hd_1920_1080_24fps.mp4',
+           15785122:'https://videos.pexels.com/video-files/15785122/15785122-hd_1920_1080_24fps.mp4',
+           17972072:'https://videos.pexels.com/video-files/17972072/17972072-hd_1920_1080_30fps.mp4',
+          }
+          s=requests.Session();s.headers.update({'User-Agent':'Mozilla/5.0 (compatible; Travel-Editing/2.0)'})
+          for sc in scenes:
+           id=sc['id'];dest=SRC/f'{id}.mp4';u=SOURCE_URLS[id]
+           if not dest.exists():
+            print('FETCH CLIP',sc['name'],u,flush=True)
+            with s.get(u,timeout=(25,140),stream=True) as r:
+             r.raise_for_status()
+             with open(dest,'wb') as f:
+              for b in r.iter_content(1024*1024):
+               if b:f.write(b)
+           if dest.stat().st_size<1000000:raise RuntimeError('Video incomplete '+str(dest))
+           sc['duration']=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',str(dest)]).decode().strip())
+           print('CLIP READY',id,sc['duration'],dest.stat().st_size,flush=True)
+          # Music license: Mixkit Stock Music Free License, "Tears of Joy" by Michael Ramir C.
+          mu=BASE/'licensed_music.mp3'
+          with s.get('https://assets.mixkit.co/music/839/839.mp3',stream=True,timeout=(25,120)) as r:
+           r.raise_for_status()
+           with open(mu,'wb') as f:
+            for b in r.iter_content(1024*1024):
+             if b:f.write(b)
+          print('MUSIC READY',mu.stat().st_size,flush=True)
+          W,H,FPS=1080,1920,24
+          FONT='/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf'
+          SMALL='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+          def font(size,path=FONT):return ImageFont.truetype(path,size)
+          def centered(draw,text,y,ft,color,stroke=0):
+           bb=draw.textbbox((0,0),text,font=ft,stroke_width=stroke)
+           draw.text(((W-(bb[2]-bb[0]))/2,y),text,font=ft,fill=color,stroke_width=stroke,stroke_fill=(12,16,22,170))
+          def overlay(sc,i):
+           im=Image.new('RGBA',(W,H),(0,0,0,0)); d=ImageDraw.Draw(im)
+           # Elegant cinematic lower-third rather than oversized graphics.
+           for y in range(1280,H,4):
+            alpha=int(165*(y-1280)/(H-1280))
+            d.rectangle((0,y,W,y+3),fill=(5,12,21,alpha))
+           # Brand over first and final hero images only.
+           if i==0:
+            d.rounded_rectangle((76,136,370,186),radius=12,fill=(8,16,26,110))
+            d.text((96,146),'CENTRAL VIETNAM',font=font(25,SMALL),fill=(255,234,204,245))
+           if i<7:
+            ft=font(86 if len(sc['label'])<17 else 70)
+            centered(d,sc['label'],1484,ft,(255,255,252,255),1)
+            centered(d,sc['subtitle'],1622,font(33,SMALL),(248,214,162,245))
+            d.rounded_rectangle((W/2-44,1718,W/2+44,1725),radius=3,fill=(241,189,115,255))
+           else:
+            ft=font(69)
+            centered(d,sc['label'],1390,ft,(255,255,250,255),1)
+            centered(d,sc['subtitle'],1530,font(33,SMALL),(249,213,160,255))
+            d.rounded_rectangle((173,1654,907,1737),radius=20,fill=(247,200,129,245))
+            centered(d,sc['cta'],1674,font(31),(22,27,37,255))
+           return im
+          for i,sc in enumerate(scenes):
+           video=SRC/f"{sc['id']}.mp4";start=max(0,min(sc['start'],sc['duration']-4.3))
+           png=BASE/f'overlay{i}.png';overlay(sc,i).save(png)
+           out=SEG/f'scene{i:02}.mp4'
+           vf="[0:v]fps=24,scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,eq=contrast=1.045:saturation=1.07,format=yuv420p[a];[a][1:v]overlay=0:0:shortest=1,format=yuv420p[v]"
+           cmd=['ffmpeg','-nostdin','-y','-hide_banner','-loglevel','error','-ss',str(start),'-i',str(video),'-loop','1','-i',str(png),'-filter_complex',vf,'-map','[v]','-an','-t','4','-r','24','-c:v','libx264','-pix_fmt','yuv420p','-preset','veryfast','-crf','20',str(out)]
+           print('EDIT SCENE',i,sc['name'],flush=True)
+           subprocess.run(cmd,check=True,timeout=320)
+           assert out.stat().st_size>20000,sc['name']
+          with open(BASE/'concat.txt','w') as f:
+           for i in range(len(scenes)):f.write("file '"+str((SEG/f'scene{i:02}.mp4').resolve())+"'\n")
+          # Trim professional soundtrack to its brighter section; standard loudness and tapered outro.
+          music=BASE/'final_audio.m4a'
+          subprocess.run(['ffmpeg','-nostdin','-v','error','-y','-ss','12','-i',str(mu),'-t','32','-af','afade=t=in:st=0:d=0.7,afade=t=out:st=29.7:d=2.3,loudnorm=I=-16:TP=-1.5:LRA=10','-c:a','aac','-b:a','192k',str(music)],check=True,timeout=150)
+          final=OUT/'Da_Nang_Hoi_An_Professional_Real_Footage_v2.mp4'
+          subprocess.run(['ffmpeg','-nostdin','-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',str(BASE/'concat.txt'),'-i',str(music),'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','copy','-t','32','-movflags','+faststart',str(final)],check=True,timeout=160)
+          assert final.stat().st_size>3000000
+          # Produce a poster and scene storyboard for review.
+          subprocess.run(['ffmpeg','-nostdin','-v','error','-y','-ss','2','-i',str(final),'-frames:v','1',str(OUT/'poster.jpg')],check=True)
+          frames=[]
+          for i,t in enumerate(range(2,32,4)):
+           name=BASE/f'review{i:02}.jpg'
+           subprocess.run(['ffmpeg','-nostdin','-v','error','-y','-ss',str(t),'-i',str(final),'-vf','scale=240:-1','-frames:v','1',str(name)],check=True)
+           pic=Image.open(name).convert('RGB');pic.thumbnail((240,440));frames.append((t,pic))
+          strip=Image.new('RGB',(240*len(frames),475),'white');d=ImageDraw.Draw(strip)
+          for i,(t,im) in enumerate(frames):
+           strip.paste(im,(240*i,20));d.text((240*i+5,3),str(t)+'s',fill='black')
+          strip.save(OUT/'storyboard.jpg')
+          credits='# DA NANG / HOI AN — Film v2\n\nAll moving scenes are Pexels free-stock clips, cropped, graded, and edited. Check https://www.pexels.com/license/ for terms. Music: "Tears of Joy" by Michael Ramir C., licensed via Mixkit Stock Music Free License (https://mixkit.co/license/#musicFree).\n\n'
+          for sc in scenes:
+           id=sc['id']
+           credits+=f"- {sc['name']}: https://www.pexels.com/video/{id}/ (Pexels free license)\n"
+          credits+='\nNo video was sourced from TikTok or Douyin. Any footage featuring identifiable people does not imply endorsement of local guide services.\n'
+          (OUT/'CREDITS.txt').write_text(credits,encoding='utf-8')
+          meta={'duration':32,'resolution':'1080x1920','fps':24,'scenes':[s['name'] for s in scenes],'size':final.stat().st_size}
+          (OUT/'export_report.json').write_text(json.dumps(meta,indent=2))
+          print('SUCCESS_FINAL',final,final.stat().st_size,flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/produce.py
+          python /tmp/produce.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FINAL-Da-Nang-Hoi-An-Pro-Ad
+          path: output/
+          retention-days: 14
