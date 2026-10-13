@@ -1,0 +1,41 @@
+name: Check Pexels public CDN footage
+on:
+  push:
+    branches: [pro-travel-edit-20261013]
+permissions:
+  contents: read
+jobs:
+  testcdn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe known free-stock video IDs
+        run: |
+          python -m pip install -q requests
+          cat > /tmp/probe.py <<'PY'
+          import requests, concurrent.futures
+          ids=[9791713,34754952,8664221,34938309,28505876,17972072]
+          paths=[]
+          for id in ids:
+           for q in ['hd','sd']:
+            for res in ['1920_1080','1080_1920','1280_720','3840_2160']:
+             for fps in [24,25,30,50,60]:
+              paths.append((id,f'https://videos.pexels.com/video-files/{id}/{id}-{q}_{res}_{fps}fps.mp4'))
+          s=requests.Session()
+          s.headers.update({'User-Agent':'Mozilla/5.0','Referer':'https://www.pexels.com/'})
+          def probe(pair):
+           id,url=pair
+           try:
+            r=s.head(url,allow_redirects=True,timeout=6)
+            if r.status_code==200 and r.headers.get('content-type','').startswith('video'):return id,url,r.headers.get('content-length')
+            return None
+           except:return None
+          with concurrent.futures.ThreadPoolExecutor(max_workers=28) as pool:
+           vals=list(pool.map(probe,paths))
+          for r in vals:
+           if r:print('FOUND VIDEO',r,flush=True)
+          print('DONE:',len([x for x in vals if x]),'of',len(paths),flush=True)
+          
+          PY
+          sed -i 's/^          //' /tmp/probe.py
+          python /tmp/probe.py
