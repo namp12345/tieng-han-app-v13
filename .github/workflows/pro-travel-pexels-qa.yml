@@ -1,0 +1,76 @@
+name: Pexels Da Nang Hoi An footage QA
+on:
+  push:
+    branches: [pro-travel-edit-20261013]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: FFmpeg install
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -qq -y ffmpeg
+          python -m pip install -q requests Pillow
+      - name: Verify matching real footage and preview
+        run: |
+          cat > /tmp/pexels.py <<'PY'
+          import requests,concurrent.futures,json,os,subprocess,math
+          from PIL import Image,ImageDraw
+          ids=[9791713,8664221,17972072,19135704,4030306,32135471,37510579,13940556,15785122,12690267,5035564,32921368,37510582,28505876,35441703,31599059,40118751,34754952,34938309]
+          labels=['DragonBridge','DaNangBeach','HanRiverNight','GoldenBridge','HoiAnAerial','BasketBoat','HoiLantern1','HoiLantern2','HoiLanternTimelapse','HoiAnEvening','HoiAnFisherman','BasketTour','HoiNightBoat','DaNangSunset','CoastalLighthouse','DaNangFamilies','HoiAnStreet2026','DaNangPanorama','DaNangBeachSunset']
+          options=[]
+          for id in ids:
+           for qual in ['hd','sd']:
+            for res in ['1920_1080','1080_1920','1280_720','720_1280']:
+             for fps in [24,25,30,60,50,59,29]:
+              url=f'https://videos.pexels.com/video-files/{id}/{id}-{qual}_{res}_{fps}fps.mp4'
+              options.append((id,url))
+          def check(t):
+           id,u=t
+           try:
+            r=requests.head(u,timeout=6,allow_redirects=True,headers={'User-Agent':'Mozilla/5.0'})
+            if r.status_code==200 and 'video' in r.headers.get('content-type',''):
+             return (id,u,int(r.headers.get('content-length','0')))
+           except:pass
+           return None
+          with concurrent.futures.ThreadPoolExecutor(max_workers=35) as pool:
+           ok=[r for r in pool.map(check,options) if r]
+          print('WORKING',len(ok),flush=True)
+          found={}
+          for id in ids:
+           paths=[r for r in ok if r[0]==id]
+           paths.sort(key=lambda x: (0 if '1920_1080' in x[1] else 1 if '1080_1920' in x[1] else 2, x[2]))
+           if paths:
+            found[str(id)]={'url':paths[0][1],'bytes':paths[0][2],'label':labels[ids.index(id)]}
+            print('SOURCE_FOUND',id,labels[ids.index(id)],paths[0][1],paths[0][2],flush=True)
+           else: print('SOURCE_MISSING',id,labels[ids.index(id)],flush=True)
+          os.makedirs('samples',exist_ok=True)
+          imgs=[]
+          # Probe remote MP4 without downloading full raw video.
+          for id in ids:
+           if str(id) not in found:continue
+           v=found[str(id)]
+           try:
+            dst=f'samples/{id}.jpg'
+            cmd=['ffmpeg','-nostdin','-hide_banner','-v','error','-y','-ss','1.2','-i',v['url'],'-frames:v','1','-vf','scale=300:-1',dst]
+            subprocess.run(cmd,timeout=35,check=True)
+            im=Image.open(dst).convert('RGB');im.thumbnail((300,170));imgs.append((v['label'],id,im))
+           except Exception as e:print('THUMB FAIL',id,str(e)[:120],flush=True)
+          ncol=4;tw=300;th=205
+          canvas=Image.new('RGB',(ncol*tw,th*math.ceil(len(imgs)/ncol)),'white')
+          d=ImageDraw.Draw(canvas)
+          for j,(label,id,im) in enumerate(imgs):
+           x=(j%ncol)*tw;y=(j//ncol)*th
+           canvas.paste(im,(x,y+28));d.text((x+8,y+4),label+' '+str(id),fill='black')
+          canvas.save('samples/contact.jpg')
+          open('samples/working_urls.json','w').write(json.dumps(found,indent=2))
+          
+          PY
+          sed -i 's/^          //' /tmp/pexels.py
+          python /tmp/pexels.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pexels-danang-hoian-selected-sources
+          path: samples/
