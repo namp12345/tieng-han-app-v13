@@ -1,0 +1,82 @@
+name: Select cinematic locations
+on:
+  push:
+    branches: [pro-travel-edit-20261013]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Install
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -qq -y ffmpeg
+          python -m pip install --quiet requests Pillow
+      - name: Source and preview footage
+        run: |
+          cat > /tmp/inspect.py <<'PY'
+          import requests,json,re,os,subprocess,glob
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageFont
+          s=requests.Session();s.headers.update({'User-Agent':'Mozilla/5.0 (compatible; TourismFilmEditor/1.0)'})
+          titles=['Maro en Danango.webm','Dragon Bridge breathing fire.ogv','Hoi An city tour , Vietnam.webm','Da Nang Cham Museum , Vietnam.webm','HoiAn Market.webm']
+          os.makedirs('report',exist_ok=True)
+          meta={}
+          for title in titles:
+           try:
+            r=s.get('https://commons.wikimedia.org/w/api.php',params={'action':'query','format':'json','prop':'videoinfo','viprop':'url|derivatives|size','titles':'File:'+title},timeout=30)
+            x=next(iter(r.json()['query']['pages'].values()))['videoinfo'][0]
+            deriv=x.get('derivatives',[])
+            print('MEDIA',title,'size',x.get('size'),'available',[(v.get('type'),v.get('width'),v.get('height'),v.get('src','')[-50:]) for v in deriv][:30],flush=True)
+            ds=[v for v in deriv if 'video/webm' in v.get('type','') and v.get('height',0) in [360,480,720]]
+            ds.sort(key=lambda v: abs(v.get('height',480)-480))
+            url=ds[0]['src'] if ds else x['url']
+            if url.startswith('//'):url='https:'+url
+            meta[title]={'proxy':url,'original':x.get('url',''),'deriv':deriv}
+            if title.startswith('Hoi An') or title.startswith('Maro'):
+             fname='report/'+('hoi' if title.startswith('Hoi') else 'beach')+'.webm'
+             with s.get(url,stream=True,timeout=(20,100)) as q:
+              print('download',q.status_code,q.headers.get('content-length'),flush=True)
+              q.raise_for_status()
+              with open(fname,'wb') as f:
+               for b in q.iter_content(1024*1024):f.write(b)
+             ss=[10,60,200,360,500,700,900,1120,1250] if title.startswith('Hoi') else [1,3,5,8,12,15,20,25]
+             dur=float(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',fname]).decode().strip())
+             ss=[min(t,max(0,dur-1)) for t in ss]
+             ims=[]
+             for t in ss:
+              name=f'report/_temp_{len(ims)}.jpg'
+              subprocess.run(['ffmpeg','-hide_banner','-v','error','-y','-ss',str(t),'-i',fname,'-vf','scale=240:-1','-frames:v','1',name],check=True)
+              im=Image.open(name).convert('RGB');im.thumbnail((240,180));ims.append((t,im))
+             contact=Image.new('RGB',(240*len(ims),220),'white')
+             dr=ImageDraw.Draw(contact)
+             for idx,(t,im) in enumerate(ims):contact.paste(im,(idx*240,20));dr.text((idx*240+3,1),str(t)+' s',fill='black')
+             contact.save('report/'+('hoi' if title.startswith('Hoi') else 'beach')+'_contact.jpg')
+           except Exception as e:print('MEDIA ERROR',title,repr(e),flush=True)
+          for url in ['https://www.pexels.com/video/panoramic-view-of-da-nang-city-skyline-34754952/','https://www.pexels.com/video/busy-people-at-the-beach-8664221/','https://www.pexels.com/video/peaceful-sunset-walk-on-da-nang-beach-34938309/']:
+           try:
+            r=s.get(url,timeout=20)
+            print('PEXELS',r.status_code,len(r.content),url,'mp4?',len(re.findall(r'\.mp4',r.text)),flush=True)
+            x=re.findall(r'https?[^"<> ]+?\.mp4[^"<> ]*',r.text);print('MP4 LINKS',x[:3],flush=True)
+           except Exception as e:print('PEXEL ERROR',str(e),flush=True)
+          for url in ['https://assets.mixkit.co/music/839/839.mp3','https://assets.mixkit.co/music/443/443.mp3']:
+           try:
+            r=s.get(url,stream=True,timeout=25)
+            print('MUSIC DIRECT',url,r.status_code,r.headers.get('content-type'),r.headers.get('content-length'),flush=True)
+            if r.ok and '839' in url:
+             with open('report/real_music.mp3','wb') as f:
+              for b in r.iter_content(1024*1024):f.write(b)
+           except Exception as e:print('MUSIC ERROR',str(e))
+          Path('report/source_meta.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2))
+          
+          PY
+          sed -i 's/^          //' /tmp/inspect.py
+          python /tmp/inspect.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: travel-editor-source-review
+          path: |
+            report/*contact.jpg
+            report/real_music.mp3
+            report/source_meta.json
